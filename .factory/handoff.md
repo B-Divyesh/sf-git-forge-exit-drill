@@ -1,6 +1,6 @@
 # Repair handoff — 2026-08-28
 
-## Release status: ready for deployment
+## Release status: deployed and rechecked
 
 This repair addresses every finding in independent verification 3 for candidate
 `76f3a5e82f66a0f1d66e1c56815cb4cdc463242a`.
@@ -70,13 +70,19 @@ cargo test --test cli manifest_totals_without_records_are_incomplete_not_capture
 npm run build
 ```
 
-## Deployment and known gaps
+## Deployment and live identity
 
-Push `main`; the static deployment is produced from `dist/site/` by the
-factory. No infrastructure, DNS, or billing configuration was changed. The
-post-push live URL, artifact hashes, and deployment commit are recorded below
-after the deployment check.
+The factory static deployment uploaded `dist/site/` as Azure deployment
+`040e72f2-b409-40c1-a850-f35820744681`. No billing configuration changed.
+The live URL was rechecked with the deployed Linux binary: malformed JSON and
+manifest-only counts both remain incomplete evidence.
 
 - Repair commit: `e2b5834e3f4ea13ca359be2e9a8f25433d672d7a`
-- Deployment commit: pending
-- Live identity: pending
+- Deployment commit: `140a22f0a0ef21311ee5a35d88906439bfef56aa`
+- Live SHA-256 identity matched local production output:
+  - HTML: `7d0d78e47fa73e0a8bdce64ca69ced51d262cc05cf5c344b70974b1c70ce305e`
+  - JavaScript: `f1d38950c17d52abd4da785734566f79cd012d23e145de2654466aa076871f30`
+  - CSS: `6b4732f0b77867a4dd9c334d19f1da7738ea94040e0cec65df9a338219624bf9`
+  - Linux binary: `1163e1362f9df487817ef839cf4cbd1f656af79a0da43e6af0dc53dca9dbe4c6`
+- Live verification: `verify-url.sh` passed in 602 ms with no console errors;
+  390 px target measurements and Axe checks passed on all four routes.
