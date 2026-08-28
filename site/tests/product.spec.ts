@@ -135,9 +135,10 @@ test('@claim:team-portfolio valid Team Pack license creates a ten-repository-cap
   const address = server.address();
   if (!address || typeof address === 'string') throw new Error('mock server did not start');
   const root = await mkdtemp(join(tmpdir(), 'gfed-team-'));
+  const tenSources = Array.from({ length: 10 }, () => ['--source', sample]).flat();
   try {
     await execFile(binary, [
-      'portfolio', '--source', sample, '--source', sample, '--target', 'forgejo:9.0', '--output', join(root, 'portfolio'),
+      'portfolio', ...tenSources, '--target', 'forgejo:9.0', '--output', join(root, 'portfolio'),
     ], {
       env: {
         ...process.env,
@@ -151,8 +152,25 @@ test('@claim:team-portfolio valid Team Pack license creates a ten-repository-cap
     server.close();
   }
   const report = await readFile(join(root, 'portfolio/portfolio.md'), 'utf8');
-  expect(report).toContain('Repositories:** 2');
-  expect(report.match(/acme-labs\/atlas-notes/g)).toHaveLength(2);
+  expect(report).toContain('Repositories:** 10');
+  expect(report.match(/acme-labs\/atlas-notes/g)).toHaveLength(10);
+
+  const elevenSources = Array.from({ length: 11 }, () => ['--source', sample]).flat();
+  await expect(execFile(binary, [
+    'portfolio', ...elevenSources, '--target', 'forgejo:9.0', '--output', join(root, 'too-many'),
+  ], {
+    env: {
+      ...process.env,
+      GFED_PASSPHRASE: 'browser claim passphrase',
+      GFED_LICENSE: 'test-license',
+      GFED_BILLING_BASE: 'http://127.0.0.1:1',
+      XDG_CONFIG_HOME: join(root, 'eleven-config'),
+    },
+  })).rejects.toMatchObject({
+    code: 1,
+    stderr: expect.stringContaining('portfolio accepts at most 10 export directories'),
+  });
+  await expect(readFile(join(root, 'too-many/portfolio.md'), 'utf8')).rejects.toThrow();
 });
 
 test('landing page has the required first screen and keyboard path', async ({ page }) => {

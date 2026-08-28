@@ -7,3 +7,5 @@
 - Add versioned GitLab, Gitea, and Forgejo capability maps.
 - Add Markdown and JSON readiness reports.
 - Add the isolated bundled demo and paid portfolio command.
+- Reject empty or alternate-backed Git repositories as captured history.
+- Enforce the Team Pack limit of ten total export directories per run.

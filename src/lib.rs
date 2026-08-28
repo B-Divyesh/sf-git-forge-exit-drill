@@ -322,7 +322,9 @@ fn has_valid_git_evidence(root: &Path, paths: &[PathBuf]) -> Result<bool> {
     }
 
     for path in paths {
-        if path.extension().is_some_and(|extension| extension == "bundle")
+        if path
+            .extension()
+            .is_some_and(|extension| extension == "bundle")
             && validate_git_bundle(path)?
         {
             return Ok(true);
@@ -362,12 +364,62 @@ fn is_git_dir(directory: &Path) -> bool {
 }
 
 fn validate_git_dir(directory: &Path) -> Result<bool> {
-    let output = Command::new("git")
+    // Alternates make a repository depend on object bytes outside the selected
+    // export. That is not self-contained migration evidence.
+    let alternates = directory.join("objects/info/alternates");
+    if alternates.is_file() && fs::metadata(&alternates)?.len() > 0 {
+        return Ok(false);
+    }
+
+    let fsck = Command::new("git")
         .arg(format!("--git-dir={}", directory.display()))
         .args(["fsck", "--no-reflogs", "--no-dangling", "--no-progress"])
+        .env_remove("GIT_ALTERNATE_OBJECT_DIRECTORIES")
+        .env_remove("GIT_OBJECT_DIRECTORY")
         .output()
-        .context("could not run Git to validate repository object bytes; install Git and try again")?;
-    Ok(output.status.success())
+        .context(
+            "could not run Git to validate repository object bytes; install Git and try again",
+        )?;
+    if !fsck.status.success() {
+        return Ok(false);
+    }
+
+    // `git fsck` exits successfully for a newly initialized repository. A
+    // migration export must have a commit reachable from a real ref.
+    let reachable_commit = Command::new("git")
+        .arg(format!("--git-dir={}", directory.display()))
+        .args(["rev-list", "--max-count=1", "--all"])
+        .env_remove("GIT_ALTERNATE_OBJECT_DIRECTORIES")
+        .env_remove("GIT_OBJECT_DIRECTORY")
+        .output()
+        .context("could not inspect Git refs; install Git and try again")?;
+    if !reachable_commit.status.success()
+        || reachable_commit.stdout.iter().all(u8::is_ascii_whitespace)
+    {
+        return Ok(false);
+    }
+
+    // Count only bytes in this object database. This excludes an unborn repo
+    // and prevents metadata or refs backed solely by external alternates from
+    // being reported as captured history.
+    let object_count = Command::new("git")
+        .arg(format!("--git-dir={}", directory.display()))
+        .args(["count-objects", "-v"])
+        .env_remove("GIT_ALTERNATE_OBJECT_DIRECTORIES")
+        .env_remove("GIT_OBJECT_DIRECTORY")
+        .output()
+        .context("could not count Git object bytes; install Git and try again")?;
+    if !object_count.status.success() {
+        return Ok(false);
+    }
+    let counts = String::from_utf8_lossy(&object_count.stdout);
+    let local_objects = counts.lines().filter_map(|line| {
+        let (key, value) = line.split_once(": ")?;
+        matches!(key, "count" | "in-pack")
+            .then(|| value.parse::<u64>().ok())
+            .flatten()
+    });
+    Ok(local_objects.sum::<u64>() > 0)
 }
 
 fn validate_git_bundle(bundle: &Path) -> Result<bool> {
@@ -380,8 +432,12 @@ fn validate_git_bundle(bundle: &Path) -> Result<bool> {
         .context("could not run Git to validate bundle object bytes; install Git and try again")?;
     let valid = output.status.success() && is_git_dir(&staging) && validate_git_dir(&staging)?;
     if staging.exists() {
-        fs::remove_dir_all(&staging)
-            .with_context(|| format!("could not remove temporary bundle check {}", staging.display()))?;
+        fs::remove_dir_all(&staging).with_context(|| {
+            format!(
+                "could not remove temporary bundle check {}",
+                staging.display()
+            )
+        })?;
     }
     Ok(valid)
 }
@@ -389,7 +445,11 @@ fn validate_git_bundle(bundle: &Path) -> Result<bool> {
 fn unique_temp_path(prefix: &str) -> PathBuf {
     let mut random = [0_u8; 8];
     OsRng.fill_bytes(&mut random);
-    env::temp_dir().join(format!("{prefix}-{}-{:x}", std::process::id(), u64::from_le_bytes(random)))
+    env::temp_dir().join(format!(
+        "{prefix}-{}-{:x}",
+        std::process::id(),
+        u64::from_le_bytes(random)
+    ))
 }
 
 /// Create the small, valid bare mirror used by the isolated CLI demo. The
@@ -409,7 +469,10 @@ pub fn create_demo_git_mirror(directory: &Path) -> Result<()> {
     let message = "Seed Atlas Notes history\n";
     let stream = format!(
         "blob\nmark :1\ndata {}\n{}commit refs/heads/main\nauthor Demo Owner <demo@example.invalid> 0 +0000\ncommitter Demo Owner <demo@example.invalid> 0 +0000\ndata {}\n{}M 100644 :1 README.md\n\ndone\n",
-        content.len(), content, message.len(), message
+        content.len(),
+        content,
+        message.len(),
+        message
     );
     let mut child = Command::new("git")
         .arg(format!("--git-dir={}", directory.display()))

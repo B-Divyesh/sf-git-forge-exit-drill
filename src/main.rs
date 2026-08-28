@@ -130,7 +130,9 @@ fn execute(cli: Cli) -> Result<()> {
             if root.exists()
                 && (!root.is_dir()
                     || fs::read_dir(&root)
-                        .with_context(|| format!("could not inspect demo directory {}", root.display()))?
+                        .with_context(|| {
+                            format!("could not inspect demo directory {}", root.display())
+                        })?
                         .next()
                         .is_some())
             {
@@ -248,6 +250,12 @@ fn execute(cli: Cli) -> Result<()> {
             passphrase_env,
             license_env,
         } => {
+            if sources.len() > 10 {
+                bail!(
+                    "portfolio accepts at most 10 export directories; remove {} --source value(s) and try again",
+                    sources.len() - 10
+                );
+            }
             let license = required_secret(&license_env, "Team Pack license")?;
             verify_team_license(&license)?;
             let passphrase = required_secret(&passphrase_env, "archive passphrase")?;
