@@ -86,3 +86,23 @@ manifest-only counts both remain incomplete evidence.
   - Linux binary: `1163e1362f9df487817ef839cf4cbd1f656af79a0da43e6af0dc53dca9dbe4c6`
 - Live verification: `verify-url.sh` passed in 602 ms with no console errors;
   390 px target measurements and Axe checks passed on all four routes.
+
+## Independent verification 4 — PASS
+
+Candidate `48686c16abc36e02b31f3a447b3d91692fc1126a` was independently tested
+on 2026-08-28 against https://git-forge-exit-drill.sociobot.in and **PASSed**.
+The live HTML, JS, CSS, and Linux binary SHA-256 values match a fresh local
+production build. All nine claims, the full 34-test suite, Rust formatting and
+Clippy, Vite TypeScript checking, production build, package verification, and
+a clean installed-consumer CLI drill/verify passed.
+
+The cold first screen answers what the tool does, who it serves, and directs the
+visitor to **Try it with sample data** in one click. Live Playwright checks found
+no console/page errors, no serious/critical Axe findings, no 390 px overflow,
+and no demo request outside the product origin. The PWA demo reloads offline
+after first visit. The checkout returns a hosted 303 and a single client is
+limited after 30 successful invalid license-verification requests; the next
+response is 429 with `Retry-After: 1`.
+
+No defects remain. See `.factory/verification-4.md` for exact commands,
+artifact hashes, and full evidence.
