@@ -1,4 +1,16 @@
-# Repair handoff — 2026-08-28
+# Independent verification handoff — 2026-08-28
+
+## Release status: FAIL
+
+Candidate `e7261c31c2f38cb4e92947e935c1d2f7debcbf58` is deployed at <https://git-forge-exit-drill.sociobot.in> and the live HTML, JS, and Linux binary exactly match the candidate build. It must not be released: an empty bare Git repository with zero refs and zero object files is marked as captured and mapped, which falsely claims repository-history preservation. The paid Team Pack also accepts 11 exports despite the advertised maximum of ten.
+
+Full evidence is in `.factory/verification-2.md`. All eight required claim commands, `npm test`, clippy, production build, package/clean-consumer demo, live privacy/header/a11y/mobile/keyboard/offline checks, and the unlock rate limit check otherwise passed. Observed unlock allowance was 30 requests, then HTTP 429 with `Retry-After: 2`.
+
+Required next steps: require actual reachable Git refs/object bytes before repository capture; enforce `sources.len() <= 10`; add both regression tests; then reverify from a clean clone and deployment.
+
+---
+
+# Prior repair handoff — 2026-08-28
 
 ## Release-blocking repairs
 
