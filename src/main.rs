@@ -1,8 +1,8 @@
 use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
 use git_forge_exit_drill::{
-    DrillResult, inventory_github, inventory_local, load_mappings, read_encrypted_archive,
-    run_drill, verify_team_license, write_portfolio,
+    DrillResult, create_demo_git_mirror, inventory_github, inventory_local, load_mappings,
+    read_encrypted_archive, run_drill, verify_team_license, write_portfolio,
 };
 use serde::Serialize;
 use std::{env, fs, path::PathBuf, process::ExitCode};
@@ -118,12 +118,26 @@ fn execute(cli: Cli) -> Result<()> {
         }
         Command::Demo { output, target } => {
             let root = output.unwrap_or_else(|| {
-                env::temp_dir().join(format!("git-forge-exit-drill-demo-{}", std::process::id()))
+                env::temp_dir().join(format!(
+                    "git-forge-exit-drill-demo-{}-{}",
+                    std::process::id(),
+                    std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_nanos()
+                ))
             });
-            if root.exists() {
-                fs::remove_dir_all(&root).with_context(|| {
-                    format!("could not reset demo directory {}", root.display())
-                })?;
+            if root.exists()
+                && (!root.is_dir()
+                    || fs::read_dir(&root)
+                        .with_context(|| format!("could not inspect demo directory {}", root.display()))?
+                        .next()
+                        .is_some())
+            {
+                bail!(
+                    "demo output '{}' already contains files; choose a new or empty directory to avoid deleting existing data",
+                    root.display()
+                );
             }
             let sample = root.join("sample-export");
             fs::create_dir_all(&sample)?;
@@ -156,6 +170,7 @@ fn execute(cli: Cli) -> Result<()> {
             for (name, bytes) in files {
                 fs::write(sample.join(name), bytes)?;
             }
+            create_demo_git_mirror(&sample.join("atlas-notes.git"))?;
             let (inventory, evidence) = inventory_local(&sample)?;
             let result = run_drill(
                 inventory,
@@ -185,7 +200,7 @@ fn execute(cli: Cli) -> Result<()> {
                 println!("Demo — sample data, nothing was read from your workspace.");
                 print_result(&result, false)?;
                 println!("Demo archive passphrase: demo-only-passphrase");
-                println!("Run the command again to reset this demo.");
+                println!("Choose a new output directory to run this demo again.");
             }
         }
         Command::Verify {

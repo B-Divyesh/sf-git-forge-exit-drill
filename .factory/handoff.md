@@ -1,64 +1,47 @@
-# Verification status — FAIL (2026-08-28)
+# Repair handoff — 2026-08-28
 
-Independent verification of candidate `34b8db1b02cc974a3aa48e240fb8acbf9bc65cfb` at <https://git-forge-exit-drill.sociobot.in> **FAILS release**. Full fresh-clone evidence is in `.factory/verification.md`.
+## Release-blocking repairs
 
-Release blockers: the CLI can report a Git repository captured without any Git object bytes; the visible Team Pack checkout returns HTTP 404; and `git-forge-exit-drill demo --output <existing-directory>` silently deletes that directory. All five required claim commands, full tests/build, consumer package install, and live a11y/mobile/offline/privacy/candidate-identity checks otherwise passed. Do not deploy or market this candidate until those defects are fixed and independently retested.
+- **Repository capture is now byte-backed.** `manifest.json` can no longer claim `git_repository`. Local inventory counts it only after Git validates a bare/working mirror with `git fsck`, or clones and checks a `.bundle`. GitHub API mode now explicitly records that it has metadata only and reports Git repository evidence missing, which blocks preservation readiness.
+- **The bundled CLI demo now creates a valid Atlas Notes bare mirror** before inventorying it. Its archive contains real Git object bytes and its generated report can honestly say the repository was captured.
+- **`demo --output` is non-destructive.** A non-empty existing output directory now exits non-zero with a new/empty-directory instruction and leaves every file untouched. The exact former sentinel failure is a Rust integration regression.
+- **Team Pack checkout remains advertised.** The registered live endpoint `https://api.sociobot.in/api/v1/products/git-forge-exit-drill/checkout` returned HTTP `303` to hosted Dodo checkout on 2026-08-28; the product link already uses that exact endpoint.
+- **Unknown static routes now return real 404 responses.** Known SPA URLs are explicitly rewritten; navigation fallback was removed and Azure Static Web Apps rewrites genuine 404s to the styled `404.html` while preserving status.
+- **Claim contract expanded from five to eight test-backed claims.** It now covers no-account demo use, selected-source immutability, no third-party demo telemetry, and the real-CLI transcript.
 
-# Builder handoff (superseded by verification FAIL)
+## Regression coverage
 
-## What shipped
+- `tests/cli.rs::demo_refuses_non_empty_output_and_preserves_existing_files` reproduces the verifier’s exact existing-directory/sentinel scenario.
+- `tests/cli.rs::manifest_cannot_claim_git_repository_without_object_bytes` proves manifest-only repository metadata becomes a blocked report.
+- Demo integration asserts its report has `Git repository | Yes (1)` only after generating and validating the mirror.
+- `site/tests/product.spec.ts` proves API inventory blocks absent Git bytes, tests each added claim, checks static 404 routing configuration, desktop and 390px rendering, keyboard route focus, axe serious/critical violations, and offline `/demo` reload after first visit.
 
-- Rust 0.1.0 single binary with `drill`, `demo`, `verify`, `capabilities`, and licensed `portfolio` commands.
-- Local export inventory with an optional explicit manifest and tolerant common-file discovery.
-- Authorized GitHub REST inventory with pagination and clear unavailable-scope findings.
-- Authenticated evidence archives using Argon2id key derivation and AES-256-GCM encryption.
-- SHA-256 file checks during archive verification.
-- Versioned GitLab 17.0, Gitea 1.22, and Forgejo 9.0 capability maps.
-- Markdown and JSON readiness reports with a restore checklist.
-- Bundled Atlas Notes demo in an isolated temporary directory.
-- $39 one-time Team Pack portfolio command for up to ten repositories.
-- Sociobot checkout, returned-license storage, restore form, daily verdict cache, and CLI verification.
-- Responsive static site with `/`, `/demo`, `/privacy`, `/terms`, and styled unknown-route views.
-- Original generated geometry art, local metadata assets, a service worker, and security headers.
+## Verification evidence
 
-## Run and build
+- Clean dependency install: `npm ci` — passed (23 packages; 0 vulnerabilities).
+- Full suite: `npm test` — passed: 3 Rust units, 6 Rust CLI integrations, and 18 Playwright tests.
+- All claim tags rechecked: `demo-private`, `free-single`, `source-read-only`, `no-telemetry`, `recorded-cli`, `encrypted-evidence`, `token-private`, and `team-portfolio` — passed.
+- Lint: `cargo clippy --all-targets -- -D warnings` — passed.
+- Production build: `npm run build` — passed. Initial JS is 15.94 KB raw / 5.72 KB gzip; CSS is 12.01 KB raw / 3.42 KB gzip.
+- Package: `cargo package --allow-dirty --no-verify` — passed (45 files; 182.2 KiB compressed). A clean unpacked consumer install using `cargo install --locked` ran `demo` and verified its generated archive successfully (28 evidence files).
+- Browser/a11y: Playwright axe found zero serious/critical issues on `/`, `/demo`, `/privacy`, and `/terms`; the suite checked desktop plus 390×844 mobile, keyboard skip-link/route focus, no page overflow, and no console errors.
+- Offline: an installed service worker served `/demo` through an offline reload after the first visit.
+- Worker URL check: `/opt/fleet/lib/verify-url.sh http://127.0.0.1:4173 <evidence-dir>` passed: title present, `lang=en`, one `h1`, `main`, zero images missing alt, zero unlabeled buttons, and zero console errors (549 ms local load).
+
+## Run and release
 
 ```sh
-npm install
+npm ci
 npm test
+cargo clippy --all-targets -- -D warnings
 npm run build
+cargo package --allow-dirty --no-verify
 ```
 
-The exact deployment command is `npm run build`. Static output lands in `dist/site/`, with `index.html` at that root. The release binary is `dist/site/downloads/git-forge-exit-drill-linux-x86_64`.
+Run the isolated demo with `cargo run -- demo`. Passing `--output` requires a new or empty directory. Build output is `dist/site/`; the static deployment command is `/opt/fleet/lib/deploy-static.sh git-forge-exit-drill dist/site`.
 
-Run the product demo with:
+## Known limits
 
-```sh
-cargo run -- demo
-```
-
-The demo passphrase is `demo-only-passphrase` and protects sample data only.
-
-## Verification completed
-
-- `npm test`: passed.
-- Rust: 3 unit tests and 4 CLI integration tests passed.
-- Browser: 12 Playwright tests passed in Chromium 1.58.2.
-- All five `.factory/claims.json` claim commands are covered by unique tagged tests.
-- Playwright axe checks found no serious or critical issues on `/`, `/demo`, `/privacy`, or `/terms`.
-- `/opt/fleet/lib/verify-url.sh`: passed with title, `lang`, one `h1`, `main`, alt text, and zero console errors.
-- `cargo clippy --all-targets -- -D warnings`: passed.
-- `npm audit --audit-level=high`: no vulnerabilities.
-- `cargo package --allow-dirty --no-verify`: produced a 176.2 KiB compressed source package.
-- Production build: passed. Initial JS is 15.94 KiB raw / 5.72 KiB gzip. CSS is 12.01 KiB raw / 3.42 KiB gzip. Hero WebP is 61.4 KiB.
-- Lighthouse 13 mobile simulation: performance 100, accessibility 100, best practices 100, SEO 100. FCP 0.9 s, LCP 1.5 s, TBT 0 ms, CLS 0.
-- Desktop and 390×844 screenshots were reviewed. Content remained readable with no page-level horizontal overflow.
-
-## Known gaps and next steps
-
-- The factory still needs to register the paid product before checkout can complete.
-- Capability maps are dated planning baselines. Recheck and update them when target forge versions change.
-- API mode archives repository and artifact metadata. It does not download Git object packs or release binaries. Use a local mirror/export when those bytes must enter the evidence archive.
-- GitHub API collection stops after 100 pages per artifact type. This covers the intended small-team scope but should be raised for very large repositories.
-- Only a Linux x86-64 binary is placed on the static site. The release pipeline can add macOS, Windows, ARM, and checksums.
-- Lighthouse ran against the local production preview. Repeat it against the deployed HTTPS URL after factory deployment.
+- API mode deliberately does not claim repository preservation because GitHub metadata APIs do not provide the Git object graph. Use a local export containing a valid mirror or bundle for a readiness decision.
+- Capability maps remain dated planning baselines and should be reviewed whenever target forge versions change.
+- The release site contains a Linux x86-64 binary only.

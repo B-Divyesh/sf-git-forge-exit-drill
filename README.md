@@ -12,7 +12,7 @@ The tool does not migrate data or change either forge.
 cargo run -- demo
 ```
 
-The command loads `examples/atlas-notes-export/` in a temporary folder. It prints the report and archive paths. Demo data is removed on the next system cleanup and never enters your real workspace.
+The command loads the bundled Atlas Notes metadata and creates a validated sample Git mirror in a temporary folder. It prints the report and archive paths. Demo data is removed on the next system cleanup and never enters your real workspace. If you use `--output`, it must be a new or empty directory; the command never deletes an existing directory.
 
 ## Install
 
@@ -43,11 +43,11 @@ The output directory contains:
 - `readiness.json`: the same findings for scripts.
 - `evidence.gfed`: the source evidence encrypted with AES-256-GCM after an Argon2id key derivation.
 
-The source directory may contain a `manifest.json` with explicit artifact counts. Without one, the CLI recognizes common JSON export names such as `issues.json`, `pull_requests.json`, `releases.json`, and `workflow_runs.json`. All regular source files enter the evidence archive.
+The source directory may contain a `manifest.json` with explicit artifact counts. Without one, the CLI recognizes common JSON export names such as `issues.json`, `pull_requests.json`, `releases.json`, and `workflow_runs.json`. A manifest cannot prove repository history: to report **Git repository** captured, the export must also contain a valid Git bundle or a valid bare/working mirror with Git object bytes. The CLI runs `git fsck` (or clones and checks a bundle) before counting it. All regular source files enter the evidence archive.
 
 ## Run an authorized API drill
 
-Create a fine-grained GitHub token with read-only access to the repository metadata you need. The token is read from the environment and is never written to the report.
+Create a fine-grained GitHub token with read-only access to the repository metadata you need. The token is read from the environment and is never written to the report. API mode inventories metadata but does not download Git object bytes, so its readiness report remains blocked until you run a local drill with a validated mirror or bundle.
 
 ```sh
 export GITHUB_TOKEN='github_pat_...'

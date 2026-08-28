@@ -26,6 +26,23 @@ test('@claim:demo-private sample demo is immediate and same-origin only', async 
   expect(await page.evaluate(() => localStorage.getItem('sb_license:git-forge-exit-drill'))).toBe('real-data-must-not-be-read');
 });
 
+test('@claim:no-telemetry the site demo makes no third-party requests', async ({ page }) => {
+  const origins = new Set<string>();
+  page.on('request', (request) => origins.add(new URL(request.url()).origin));
+  await page.goto('/demo');
+  await expect(page.getByRole('heading', { level: 1, name: 'See a complete exit drill' })).toBeVisible();
+  expect([...origins]).toEqual(['http://127.0.0.1:4173']);
+});
+
+test('@claim:recorded-cli the demo transcript matches the bundled CLI drill', async ({ page }) => {
+  const { stdout } = await execFile(binary, ['demo']);
+  await page.goto('/demo');
+  for (const line of ['Repository: acme-labs/atlas-notes', 'Target: Forgejo 9.0', 'Outcome: BLOCKED']) {
+    expect(stdout).toContain(line);
+    await expect(page.getByText(line, { exact: true })).toBeVisible();
+  }
+});
+
 test('@claim:free-single one-repository drill runs without a license or network', async () => {
   const root = await mkdtemp(join(tmpdir(), 'gfed-free-'));
   const output = join(root, 'result');
@@ -44,6 +61,17 @@ test('@claim:free-single one-repository drill runs without a license or network'
   const report = JSON.parse(await readFile(join(output, 'readiness.json'), 'utf8'));
   expect(report.findings).toHaveLength(13);
   expect(report.findings.find((finding: { artifact: string }) => finding.artifact === 'issues').target_support).toBe('native');
+});
+
+test('@claim:source-read-only a local drill leaves its selected source unchanged', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'gfed-source-'));
+  const output = join(root, 'result');
+  const before = await readFile(join(sample, 'issues.json'));
+  await execFile(binary, ['drill', '--source', sample, '--target', 'gitea:1.22', '--output', output], {
+    env: { ...process.env, GFED_PASSPHRASE: 'browser claim passphrase' },
+  });
+  expect(await readFile(join(sample, 'issues.json'))).toEqual(before);
+  expect(await readFile(join(output, 'readiness.json'), 'utf8')).toContain('acme-labs/atlas-notes');
 });
 
 test('@claim:encrypted-evidence archive hides source text and verifies', async () => {
@@ -92,6 +120,9 @@ test('@claim:token-private API token stays out of every output file', async () =
   for (const name of ['readiness.md', 'readiness.json', 'evidence.gfed']) {
     expect((await readFile(join(root, name))).includes(Buffer.from(token))).toBe(false);
   }
+  const report = JSON.parse(await readFile(join(root, 'readiness.json'), 'utf8'));
+  expect(report.outcome).toBe('blocked');
+  expect(report.findings.find((finding: { artifact: string }) => finding.artifact === 'git_repository')).toMatchObject({ captured: false, result: 'missing evidence' });
 });
 
 test('@claim:team-portfolio valid Team Pack license creates a ten-repository-capable report', async () => {
@@ -137,6 +168,34 @@ test('landing page has the required first screen and keyboard path', async ({ pa
   await expect(page.locator('h1')).toBeFocused();
 });
 
+test('desktop and 390px mobile render without page overflow or console errors', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text());
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  await expect(page.locator('h1')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/demo');
+  await expect(page.locator('h1')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('the demo reloads offline after its first visit', async ({ page, context }) => {
+  await page.goto('/demo');
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+  });
+  await page.reload();
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1, name: 'See a complete exit drill' })).toBeVisible();
+  await context.setOffline(false);
+});
+
 for (const route of ['/', '/demo', '/privacy', '/terms']) {
   test(`${route} has no serious accessibility violations`, async ({ page }) => {
     await page.goto(route);
@@ -163,4 +222,11 @@ test('unknown routes show a styled way home', async ({ page }) => {
   await expect(page).toHaveTitle('Page not found — Git Forge Exit Drill');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('This route has no evidence');
   await expect(page.getByRole('link', { name: 'Return home' })).toBeVisible();
+});
+
+test('static deployment configuration reserves HTTP 404 for unknown routes', async () => {
+  const config = JSON.parse(await readFile(join(process.cwd(), 'site/public/staticwebapp.config.json'), 'utf8'));
+  expect(config.navigationFallback).toBeUndefined();
+  expect(config.routes.filter((route: { rewrite?: string }) => route.rewrite === '/index.html').map((route: { route: string }) => route.route)).toEqual(['/demo', '/privacy', '/terms']);
+  expect(config.responseOverrides['404']).toEqual({ rewrite: '/404.html' });
 });

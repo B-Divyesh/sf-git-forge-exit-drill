@@ -7,10 +7,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     env, fs,
-    io::Read,
+    io::{Read, Write},
     path::{Path, PathBuf},
+    process::{Command, Stdio},
     time::{SystemTime, UNIX_EPOCH},
 };
 use zeroize::Zeroize;
@@ -195,11 +196,14 @@ pub fn inventory_local(root: &Path) -> Result<(Inventory, Vec<EvidenceFile>)> {
             artifacts.extend(explicit);
         }
     }
+    // A manifest is metadata, not repository evidence. Never let a claimed count
+    // turn into a successful repository capture without real Git object bytes.
+    artifacts.remove("git_repository");
 
     let mut evidence = Vec::with_capacity(paths.len());
     let mut total = 0_u64;
-    for path in paths {
-        let metadata = fs::metadata(&path)?;
+    for path in &paths {
+        let metadata = fs::metadata(path)?;
         if metadata.len() > MAX_FILE_BYTES {
             bail!(
                 "'{}' exceeds the 25 MB per-file limit; split large binary assets from the metadata export",
@@ -212,15 +216,18 @@ pub fn inventory_local(root: &Path) -> Result<(Inventory, Vec<EvidenceFile>)> {
                 "the export exceeds the 250 MB evidence limit; archive large repository objects separately"
             );
         }
-        let bytes =
-            fs::read(&path).with_context(|| format!("could not read {}", path.display()))?;
+        let bytes = fs::read(path).with_context(|| format!("could not read {}", path.display()))?;
         let relative = path
             .strip_prefix(root)
-            .unwrap_or(&path)
+            .unwrap_or(path)
             .to_string_lossy()
             .replace('\\', "/");
         infer_artifact(&relative, &bytes, &mut artifacts);
         evidence.push(evidence_file(relative, bytes));
+    }
+
+    if has_valid_git_evidence(root, &paths)? {
+        artifacts.insert("git_repository".to_owned(), 1);
     }
 
     if artifacts.is_empty() {
@@ -291,8 +298,6 @@ fn infer_artifact(path: &str, bytes: &[u8], artifacts: &mut BTreeMap<String, u64
         Some("discussions")
     } else if name.contains("lfs") {
         Some("git_lfs")
-    } else if name.ends_with(".bundle") || name.contains("repository.git") {
-        Some("git_repository")
     } else {
         None
     };
@@ -301,6 +306,127 @@ fn infer_artifact(path: &str, bytes: &[u8], artifacts: &mut BTreeMap<String, u64
             .entry(kind.to_owned())
             .or_insert_with(|| json_count(bytes));
     }
+}
+
+/// Prove that an export contains an object database Git itself can read. A
+/// manifest, refs without objects, and a directory named `repository.git` are
+/// deliberately insufficient: they cannot restore repository history.
+fn has_valid_git_evidence(root: &Path, paths: &[PathBuf]) -> Result<bool> {
+    let mut git_dirs = BTreeSet::new();
+    let dot_git = root.join(".git");
+    if is_git_dir(&dot_git) {
+        git_dirs.insert(dot_git);
+    }
+    if is_git_dir(root) {
+        git_dirs.insert(root.to_path_buf());
+    }
+
+    for path in paths {
+        if path.extension().is_some_and(|extension| extension == "bundle")
+            && validate_git_bundle(path)?
+        {
+            return Ok(true);
+        }
+        let mut parent = path.parent();
+        while let Some(directory) = parent {
+            if !directory.starts_with(root) {
+                break;
+            }
+            if directory
+                .file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name == ".git" || name.ends_with(".git"))
+                && is_git_dir(directory)
+            {
+                git_dirs.insert(directory.to_path_buf());
+            }
+            if directory == root {
+                break;
+            }
+            parent = directory.parent();
+        }
+    }
+
+    for directory in git_dirs {
+        if validate_git_dir(&directory)? {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+fn is_git_dir(directory: &Path) -> bool {
+    directory.join("HEAD").is_file()
+        && directory.join("objects").is_dir()
+        && directory.join("refs").is_dir()
+}
+
+fn validate_git_dir(directory: &Path) -> Result<bool> {
+    let output = Command::new("git")
+        .arg(format!("--git-dir={}", directory.display()))
+        .args(["fsck", "--no-reflogs", "--no-dangling", "--no-progress"])
+        .output()
+        .context("could not run Git to validate repository object bytes; install Git and try again")?;
+    Ok(output.status.success())
+}
+
+fn validate_git_bundle(bundle: &Path) -> Result<bool> {
+    let staging = unique_temp_path("git-forge-exit-drill-bundle");
+    let output = Command::new("git")
+        .args(["clone", "--mirror", "--quiet"])
+        .arg(bundle)
+        .arg(&staging)
+        .output()
+        .context("could not run Git to validate bundle object bytes; install Git and try again")?;
+    let valid = output.status.success() && is_git_dir(&staging) && validate_git_dir(&staging)?;
+    if staging.exists() {
+        fs::remove_dir_all(&staging)
+            .with_context(|| format!("could not remove temporary bundle check {}", staging.display()))?;
+    }
+    Ok(valid)
+}
+
+fn unique_temp_path(prefix: &str) -> PathBuf {
+    let mut random = [0_u8; 8];
+    OsRng.fill_bytes(&mut random);
+    env::temp_dir().join(format!("{prefix}-{}-{:x}", std::process::id(), u64::from_le_bytes(random)))
+}
+
+/// Create the small, valid bare mirror used by the isolated CLI demo. The
+/// source files and commit are bundled in this binary; no workspace export or
+/// network source is read.
+pub fn create_demo_git_mirror(directory: &Path) -> Result<()> {
+    let initialized = Command::new("git")
+        .args(["init", "--bare", "--quiet"])
+        .arg(directory)
+        .status()
+        .context("could not run Git for the bundled demo; install Git and try again")?;
+    if !initialized.success() {
+        bail!("could not create the bundled demo Git mirror")
+    }
+
+    let content = "Atlas Notes sample source\n";
+    let message = "Seed Atlas Notes history\n";
+    let stream = format!(
+        "blob\nmark :1\ndata {}\n{}commit refs/heads/main\nauthor Demo Owner <demo@example.invalid> 0 +0000\ncommitter Demo Owner <demo@example.invalid> 0 +0000\ndata {}\n{}M 100644 :1 README.md\n\ndone\n",
+        content.len(), content, message.len(), message
+    );
+    let mut child = Command::new("git")
+        .arg(format!("--git-dir={}", directory.display()))
+        .args(["fast-import", "--quiet"])
+        .stdin(Stdio::piped())
+        .spawn()
+        .context("could not create the bundled demo Git objects")?;
+    child
+        .stdin
+        .take()
+        .expect("piped stdin")
+        .write_all(stream.as_bytes())?;
+    let imported = child.wait()?;
+    if !imported.success() || !validate_git_dir(directory)? {
+        bail!("could not validate the bundled demo Git objects")
+    }
+    Ok(())
 }
 
 fn json_count(bytes: &[u8]) -> u64 {
@@ -337,8 +463,11 @@ pub fn inventory_github(repository: &str, token: &str) -> Result<(Inventory, Vec
     let metadata = api_get(&api_base, &format!("/repos/{repository}"), token).context(
         "GitHub rejected the repository request; check the name and read-only token scope",
     )?;
-    artifacts.insert("git_repository".to_owned(), 1);
     evidence.push(evidence_file("api/repository.json".to_owned(), metadata));
+    unavailable.insert(
+        "git_repository".to_owned(),
+        "GitHub API mode inventories metadata only. Provide --source with a validated mirror or bundle to prove Git object capture.".to_owned(),
+    );
 
     let endpoints = [
         (

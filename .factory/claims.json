@@ -1,7 +1,7 @@
 [
   {
     "id": "demo-private",
-    "claim": "The sample demo sends data only to this site and uses a separate demo storage key.",
+    "claim": "The sample demo needs no account, sends data only to this site, and uses a separate demo storage key.",
     "where": "demo banner and demo page",
     "test": "npm test -- --grep @claim:demo-private",
     "sandbox": "fresh browser context at /demo; record requests and inspect localStorage keys"
@@ -12,6 +12,27 @@
     "where": "landing facts, paid section, README",
     "test": "npm test -- --grep @claim:free-single",
     "sandbox": "bundled export in a temporary directory; no license; rejecting HTTP proxy"
+  },
+  {
+    "id": "source-read-only",
+    "claim": "The CLI reads the selected local export without changing it.",
+    "where": "landing boundary section",
+    "test": "npm test -- --grep @claim:source-read-only",
+    "sandbox": "run a bundled local drill, compare a source file before and after, and inspect the separate output"
+  },
+  {
+    "id": "no-telemetry",
+    "claim": "The sample site demo makes no third-party telemetry requests.",
+    "where": "landing boundary list and README privacy section",
+    "test": "npm test -- --grep @claim:no-telemetry",
+    "sandbox": "fresh browser context at /demo; record every request origin"
+  },
+  {
+    "id": "recorded-cli",
+    "claim": "The demo recording shows output from the bundled CLI sample drill.",
+    "where": "demo page",
+    "test": "npm test -- --grep @claim:recorded-cli",
+    "sandbox": "run the bundled CLI demo and compare its repository, target, and outcome lines with /demo"
   },
   {
     "id": "encrypted-evidence",

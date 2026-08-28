@@ -11,12 +11,20 @@
     {
       "route": "/downloads/*",
       "headers": {"Content-Disposition": "attachment"}
+    },
+    {
+      "route": "/demo",
+      "rewrite": "/index.html"
+    },
+    {
+      "route": "/privacy",
+      "rewrite": "/index.html"
+    },
+    {
+      "route": "/terms",
+      "rewrite": "/index.html"
     }
   ],
-  "navigationFallback": {
-    "rewrite": "/index.html",
-    "exclude": ["/assets/*", "/*.{png,webp,svg,xml,txt,js,css}", "/downloads/*"]
-  },
   "responseOverrides": {
     "404": {"rewrite": "/404.html"}
   },
