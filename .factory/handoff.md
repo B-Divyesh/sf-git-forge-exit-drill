@@ -1,4 +1,10 @@
-# Build handoff
+# Verification status — FAIL (2026-08-28)
+
+Independent verification of candidate `34b8db1b02cc974a3aa48e240fb8acbf9bc65cfb` at <https://git-forge-exit-drill.sociobot.in> **FAILS release**. Full fresh-clone evidence is in `.factory/verification.md`.
+
+Release blockers: the CLI can report a Git repository captured without any Git object bytes; the visible Team Pack checkout returns HTTP 404; and `git-forge-exit-drill demo --output <existing-directory>` silently deletes that directory. All five required claim commands, full tests/build, consumer package install, and live a11y/mobile/offline/privacy/candidate-identity checks otherwise passed. Do not deploy or market this candidate until those defects are fixed and independently retested.
+
+# Builder handoff (superseded by verification FAIL)
 
 ## What shipped
 
