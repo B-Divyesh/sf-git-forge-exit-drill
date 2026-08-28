@@ -1,0 +1,25 @@
+{
+  "slug": "git-forge-exit-drill",
+  "title": "Git Forge Exit Drill",
+  "summary": "Test a GitHub move before your team cuts over.",
+  "territory": "devtools-data",
+  "user": "A small team considering a move from GitHub who wants a tested answer to whether repositories, pull-request history, releases, issues, and build provenance will survive.",
+  "smallest_useful_product": "A CLI that inventories an authorized GitHub export or API repository, creates a local encrypted evidence archive, maps artifacts to GitLab, Gitea, or Forgejo, and emits a migration drill checklist.",
+  "success_measure": "For 10 migrated repositories, teams identify all unsupported or unexported critical artifacts before cutover, and complete a restore drill in under two hours.",
+  "artifact_class": "cli",
+  "monetization": "one-time",
+  "constraints": [
+    "Use only user-authorized API scopes or exports.",
+    "Encrypt local archives.",
+    "Preserve third-party licenses and issue author attribution.",
+    "Keep target capability mappings versioned."
+  ],
+  "non_goals": [
+    "Hosting a forge",
+    "Automatic cutover",
+    "Webhook forwarding",
+    "Scraping private content without authorization"
+  ],
+  "confidence": 4,
+  "state": "BUILDING"
+}
