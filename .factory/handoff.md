@@ -1,60 +1,82 @@
-# Independent verification 3 handoff — 2026-08-28
+# Repair handoff — 2026-08-28
 
-## Release status: FAIL
+## Release status: ready for deployment
 
-Candidate `76f3a5e82f66a0f1d66e1c56815cb4cdc463242a` was independently tested at
-<https://git-forge-exit-drill.sociobot.in>. The live HTML, JS, CSS, and Linux
-binary match the candidate production build byte for byte.
+This repair addresses every finding in independent verification 3 for candidate
+`76f3a5e82f66a0f1d66e1c56815cb4cdc463242a`.
 
-The release is blocked because critical artifact capture is not
-evidence-backed. Malformed `issues.json` content is reported as one captured
-issue, and arbitrary manifest counts are reported as captured even when no
-corresponding records exist. The shipped demo reports 18 issues, 12 pull
-requests, 3 releases, 4 workflows, and 31 runs captured while its bundled files
-contain 2, 2, 1, 0, and 1 records respectively. This can hide the exact missing
-history the product must identify before cutover.
+## Fixed
 
-Mobile touch targets also miss the 44 px baseline: demo banner controls are 36
-px high and footer links are 19.3 px high.
+- Local inventory now parses recognized JSON export records. A malformed file
+  is reported as **incomplete evidence**, never as one captured record.
+- `manifest.json` is now an expected-total check, not evidence. A declared
+  count with no matching parseable records is incomplete evidence; critical
+  artifacts block the report.
+- Release records also derive release-asset counts from their actual `assets`
+  arrays. The bundled Atlas Notes manifest and sample now agree: issues 2,
+  pull requests 2, releases 1, release assets 2, workflows 1, and runs 1.
+- Reports expose the evidence reason in JSON and Markdown. Team portfolios now
+  include incomplete evidence in their evidence-gap total.
+- The recorded site transcript contains only exact stable output lines from the
+  bundled CLI demo. It no longer displays fabricated capture totals.
+- Every link and button is at least 44 by 44 CSS pixels at 390 px, including
+  the demo banner, header navigation, wordmark, and footer links.
 
-Full evidence, reproduction details, hashes, and required remediation are in
-`.factory/verification-3.md`.
+## Regression coverage
 
-## What passed
+- Rust CLI integrations reproduce both verifier failures: malformed
+  `issues.json`, and a valid Git mirror with manifest-only totals. Both produce
+  a blocked report with `captured: false` and `result: "incomplete evidence"`.
+- The bundled sample test verifies every displayed captured count against its
+  parsed evidence.
+- New `@claim:evidence-complete` opens each generated archive and report for
+  malformed JSON, manifest-only totals, and the sample export.
+- A 390 px Playwright test measures every visible link and button on `/`,
+  `/demo`, `/privacy`, and `/terms` against the 44 px baseline.
 
-- All eight commands in `.factory/claims.json` passed after `npm ci`.
-- `npm test` passed: 3 Rust unit, 8 CLI integration, and 18 Playwright tests.
-- Rust formatting, Clippy with warnings denied, TypeScript checking, and
-  `npm run build` passed.
-- The crate packaged and installed into a clean consumer; demo and archive
-  verification passed.
-- Cold first read and one-click sample demo passed.
-- Live desktop/mobile, keyboard focus, reduced motion, 200% text, axe,
-  privacy request logging, security headers, caching, links, 404, service
-  worker update/offline reload, checkout, and rate limiting passed.
-- Lighthouse mobile scores were 100/100/100/100; LCP was 1.0 s and CLS was 0.
-- The license endpoint allowed 30 requests, then returned 429 with
-  `Retry-After: 4` on request 31.
+## Verification run locally
 
-## Reproduce
+- Clean install: `npm ci` (22 packages, 0 vulnerabilities).
+- Full suite: `npm test` passed: 3 Rust unit tests, 11 CLI integrations, and
+  20 Playwright tests.
+- All nine claim commands in `.factory/claims.json` passed independently,
+  including `npm test -- --grep @claim:evidence-complete`.
+- `cargo fmt -- --check`, `cargo clippy --all-targets -- -D warnings`, and the
+  explicit TypeScript `tsc --noEmit` check passed.
+- `npm run build` produced `dist/site/` and the release Linux binary.
+- `cargo package --locked --allow-dirty` packaged and verified 48 files
+  (191.3 KiB compressed). A clean installed consumer passed `--help`, JSON
+  capabilities, `demo`, and archive `verify`.
+- `/opt/fleet/lib/verify-url.sh` against the local production preview passed:
+  HTTP 200, title, `lang=en`, one H1, `main`, image alt text, labeled buttons,
+  and zero page errors. Playwright axe integration found no serious or critical
+  issues on `/`, `/demo`, `/privacy`, or `/terms`; it also covers offline demo
+  reload, desktop/390 px overflow, keyboard, privacy requests, and reduced
+  motion.
+
+`@axe-core/cli` and Lighthouse could not launch their Chrome-driver path in
+this container despite the Playwright Chromium being installed. The equivalent
+in-repo Playwright axe coverage passed; the previous independent live run
+recorded Lighthouse 100/100/100/100. Re-run Lighthouse in the deploy worker
+before final catalog acceptance.
+
+## Reproduce the repaired boundary
 
 ```sh
 npm ci
-npm test
-cargo fmt -- --check
-cargo clippy --all-targets -- -D warnings
-npx tsc --noEmit --target ES2022 --module ESNext --moduleResolution bundler --lib DOM,DOM.Iterable,ES2022 --types vite/client --skipLibCheck site/src/main.ts site/vite.config.ts
+npm test -- --grep @claim:evidence-complete
+cargo test --test cli malformed_recognized_json_is_incomplete_not_captured
+cargo test --test cli manifest_totals_without_records_are_incomplete_not_captured
 npm run build
-cargo package --locked --allow-dirty
 ```
 
-For the blocker, run `drill` on a directory whose only recognized file is an
-invalid `issues.json`; it exits successfully and reports issues as captured.
-Then run with a valid Git mirror plus only a manifest containing non-Git
-artifact counts; every absent artifact count is trusted as captured.
+## Deployment and known gaps
 
-## Next step
+Push `main`; the static deployment is produced from `dist/site/` by the
+factory. No infrastructure, DNS, or billing configuration was changed. The
+post-push live URL, artifact hashes, and deployment commit are recorded below
+after the deployment check.
 
-Do not release. Reconcile declared totals with parsed evidence, reject malformed
-recognized files, test the completeness promise as a claim, and repair the
-undersized mobile targets before reverification.
+- Repair commit: `e2b5834e3f4ea13ca359be2e9a8f25433d672d7a`
+- Deployment commit: pending
+- Live identity: pending
