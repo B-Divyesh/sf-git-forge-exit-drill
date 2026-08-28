@@ -14,13 +14,16 @@ const sample = join(process.cwd(), 'examples/atlas-notes-export');
 test('@claim:demo-private sample demo is immediate and same-origin only', async ({ page }) => {
   const origins = new Set<string>();
   page.on('request', (request) => origins.add(new URL(request.url()).origin));
+  await page.goto('/');
+  await page.evaluate(() => localStorage.setItem('sb_license:git-forge-exit-drill', 'real-data-must-not-be-read'));
+  origins.clear();
   await page.goto('/demo');
   await expect(page.getByRole('heading', { level: 1, name: 'See a complete exit drill' })).toBeVisible();
   await expect(page.getByText('Outcome: BLOCKED')).toBeVisible();
   await expect(page.getByText('Demo — sample data, nothing is saved')).toBeVisible();
   expect([...origins]).toEqual(['http://127.0.0.1:4173']);
   expect(await page.evaluate(() => localStorage.getItem('demo:gfed:started'))).toBeTruthy();
-  expect(await page.evaluate(() => Object.keys(localStorage).filter((key) => !key.startsWith('demo:')))).toEqual([]);
+  expect(await page.evaluate(() => localStorage.getItem('sb_license:git-forge-exit-drill'))).toBe('real-data-must-not-be-read');
 });
 
 test('@claim:free-single one-repository drill runs without a license or network', async () => {
@@ -38,6 +41,9 @@ test('@claim:free-single one-repository drill runs without a license or network'
   const result = JSON.parse(stdout);
   expect(result.repository).toBe('acme-labs/atlas-notes');
   expect(result.target).toBe('Gitea 1.22');
+  const report = JSON.parse(await readFile(join(output, 'readiness.json'), 'utf8'));
+  expect(report.findings).toHaveLength(13);
+  expect(report.findings.find((finding: { artifact: string }) => finding.artifact === 'issues').target_support).toBe('native');
 });
 
 test('@claim:encrypted-evidence archive hides source text and verifies', async () => {

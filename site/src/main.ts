@@ -35,7 +35,7 @@ function header(): string {
 function footer(): string {
   return `<footer class="site-footer">
     <p>Test a GitHub move before cutover.</p>
-    <div><a href="/privacy" data-link>Privacy</a><a href="/terms" data-link>Terms</a><a href="https://sociobot.in" rel="external">Built by Param Factory <span class="sr-only">(external)</span></a></div>
+    <div><a href="/privacy" data-link>Privacy</a><a href="/terms" data-link>Terms</a><a href="https://sociobot.in" rel="external">Built by Param Factory <span aria-label="(external)">↗</span></a></div>
     <p class="build">v0.1.0 · build 2026.08.28</p>
   </footer>`;
 }
@@ -100,7 +100,7 @@ function home(): string {
       <div class="section-index">TEAM PACK / $39</div>
       <div><h2 id="pricing-title">Check ten repositories together</h2><p>One $39 purchase adds the portfolio command and one ordered risk list. The complete one-repository drill stays free.</p><ul><li>Up to ten local exports per run</li><li>One consolidated Markdown report</li><li>License use on your own devices</li></ul></div>
       <div class="purchase">
-        <a class="button primary" href="${BILLING}/api/v1/products/${PRODUCT}/checkout">Buy Team Pack — $39</a>
+        <a class="button primary" href="${BILLING}/api/v1/products/${PRODUCT}/checkout">Buy Team Pack — $39 <span aria-label="(hosted checkout)">↗</span></a>
         <p>One-time purchase. Sociobot is the merchant of record.</p>
         <button class="button secondary" type="button" data-show-license>Have a license? Paste it</button>
         <form class="license-form" hidden>
@@ -287,7 +287,9 @@ function escapeHtml(value: string): string {
 
 window.addEventListener('popstate', () => render());
 render(false);
-acceptReturnedLicense();
-const savedLicense = localStorage.getItem(`sb_license:${PRODUCT}`);
-if (savedLicense) void verifyLicense(savedLicense);
+if (currentRoute() !== '/demo') {
+  acceptReturnedLicense();
+  const savedLicense = localStorage.getItem(`sb_license:${PRODUCT}`);
+  if (savedLicense) void verifyLicense(savedLicense);
+}
 if ('serviceWorker' in navigator && import.meta.env.PROD) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js'));
