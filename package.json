@@ -1,0 +1,20 @@
+{
+  "name": "git-forge-exit-drill-site",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --config site/vite.config.ts",
+    "build:site": "vite build --config site/vite.config.ts && node scripts/finish-site.mjs",
+    "build": "cargo build --release && npm run build:site && node scripts/copy-binary.mjs",
+    "preview": "vite preview --config site/vite.config.ts --host 127.0.0.1",
+    "test:rust": "cargo test",
+    "test": "npm run test:rust && npm run build:site && playwright test"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.10.2",
+    "@playwright/test": "1.58.2",
+    "typescript": "5.9.2",
+    "vite": "7.3.6"
+  }
+}

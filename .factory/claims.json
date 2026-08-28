@@ -1,0 +1,37 @@
+[
+  {
+    "id": "demo-private",
+    "claim": "The sample demo sends data only to this site and uses a separate demo storage key.",
+    "where": "demo banner and demo page",
+    "test": "npm test -- --grep @claim:demo-private",
+    "sandbox": "fresh browser context at /demo; record requests and inspect localStorage keys"
+  },
+  {
+    "id": "free-single",
+    "claim": "One-repository local drills are free and need no network connection.",
+    "where": "landing facts, paid section, README",
+    "test": "npm test -- --grep @claim:free-single",
+    "sandbox": "bundled export in a temporary directory; no license; rejecting HTTP proxy"
+  },
+  {
+    "id": "encrypted-evidence",
+    "claim": "Evidence archives use authenticated encryption and can be verified.",
+    "where": "landing how-it-works, README",
+    "test": "npm test -- --grep @claim:encrypted-evidence",
+    "sandbox": "bundled export; assert source text is absent from archive bytes and verify command succeeds"
+  },
+  {
+    "id": "token-private",
+    "claim": "GitHub API tokens are read from an environment variable and never written to reports or evidence.",
+    "where": "README API instructions and privacy page",
+    "test": "npm test -- --grep @claim:token-private",
+    "sandbox": "local GitHub API fixture with a unique token; inspect every generated output for token bytes"
+  },
+  {
+    "id": "team-portfolio",
+    "claim": "A valid Team Pack license adds a portfolio report for up to ten repositories.",
+    "where": "landing paid section, README",
+    "test": "npm test -- --grep @claim:team-portfolio",
+    "sandbox": "two bundled exports and a local recorded valid license response; assert consolidated report rows"
+  }
+]
