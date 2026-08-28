@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "updated": "2026-08-28",
+  "targets": [
+    {
+      "id": "forgejo",
+      "version": "9.0",
+      "label": "Forgejo 9.0",
+      "capabilities": {
+        "git_repository": {"status": "native", "note": "Push a mirror and compare refs."},
+        "issues": {"status": "native", "note": "Importer support varies by source and attachment."},
+        "pull_requests": {"status": "manual", "note": "Review comments and merge metadata need a restore check."},
+        "releases": {"status": "native", "note": "Recreate releases and compare tags."},
+        "release_assets": {"status": "manual", "note": "Upload assets again and compare checksums."},
+        "actions_workflows": {"status": "manual", "note": "Forgejo Actions is similar, but actions and permissions need review."},
+        "actions_runs": {"status": "unsupported", "note": "Past GitHub Actions run logs do not become Forgejo run history."},
+        "branch_protection": {"status": "manual", "note": "Rebuild protected branch rules and test them."},
+        "webhooks": {"status": "manual", "note": "Recreate endpoints with new secrets."},
+        "secrets": {"status": "unsupported", "note": "GitHub does not export secret values."},
+        "packages": {"status": "manual", "note": "Copy packages and update client registry settings."},
+        "discussions": {"status": "unsupported", "note": "No direct Forgejo Discussions equivalent is mapped."},
+        "git_lfs": {"status": "manual", "note": "Fetch every LFS object, push them, and compare object counts."}
+      }
+    },
+    {
+      "id": "gitea",
+      "version": "1.22",
+      "label": "Gitea 1.22",
+      "capabilities": {
+        "git_repository": {"status": "native", "note": "Push a mirror and compare refs."},
+        "issues": {"status": "native", "note": "Use the GitHub importer and verify attachments."},
+        "pull_requests": {"status": "manual", "note": "Review comments and merge metadata need a restore check."},
+        "releases": {"status": "native", "note": "Recreate releases and compare tags."},
+        "release_assets": {"status": "manual", "note": "Upload assets again and compare checksums."},
+        "actions_workflows": {"status": "manual", "note": "Gitea Actions compatibility does not cover every action or permission."},
+        "actions_runs": {"status": "unsupported", "note": "Past GitHub Actions run logs do not become Gitea run history."},
+        "branch_protection": {"status": "manual", "note": "Rebuild protected branch rules and test them."},
+        "webhooks": {"status": "manual", "note": "Recreate endpoints with new secrets."},
+        "secrets": {"status": "unsupported", "note": "GitHub does not export secret values."},
+        "packages": {"status": "manual", "note": "Copy packages and update client registry settings."},
+        "discussions": {"status": "unsupported", "note": "No direct Gitea Discussions equivalent is mapped."},
+        "git_lfs": {"status": "manual", "note": "Fetch every LFS object, push them, and compare object counts."}
+      }
+    },
+    {
+      "id": "gitlab",
+      "version": "17.0",
+      "label": "GitLab 17.0",
+      "capabilities": {
+        "git_repository": {"status": "native", "note": "Push a mirror and compare refs."},
+        "issues": {"status": "native", "note": "Use the GitHub importer and verify attachments."},
+        "pull_requests": {"status": "manual", "note": "Pull requests become merge requests; compare review history."},
+        "releases": {"status": "native", "note": "Recreate releases and compare tags."},
+        "release_assets": {"status": "manual", "note": "Release asset links and files need a checksum check."},
+        "actions_workflows": {"status": "manual", "note": "Rewrite GitHub Actions workflows as GitLab CI pipelines."},
+        "actions_runs": {"status": "unsupported", "note": "Past GitHub Actions runs do not become GitLab pipeline history."},
+        "branch_protection": {"status": "manual", "note": "Map branch protections to protected branches and approval rules."},
+        "webhooks": {"status": "manual", "note": "Recreate endpoints with new secrets."},
+        "secrets": {"status": "unsupported", "note": "GitHub does not export secret values."},
+        "packages": {"status": "manual", "note": "Copy packages and update client registry settings."},
+        "discussions": {"status": "unsupported", "note": "GitHub Discussions require a separate archival plan."},
+        "git_lfs": {"status": "native", "note": "Push LFS objects and compare object counts."}
+      }
+    }
+  ]
+}
