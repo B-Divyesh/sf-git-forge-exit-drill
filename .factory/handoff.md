@@ -40,6 +40,13 @@ cargo package --allow-dirty --no-verify
 
 Run the isolated demo with `cargo run -- demo`. Passing `--output` requires a new or empty directory. Build output is `dist/site/`; the static deployment command is `/opt/fleet/lib/deploy-static.sh git-forge-exit-drill dist/site`.
 
+## Deployment evidence
+
+- Repair commit `f1228122463c846196dc2b1d0a651b408283b362` was pushed to `origin/main` and deployed with `/opt/fleet/lib/deploy-static.sh git-forge-exit-drill dist/site`.
+- Azure Static Web Apps deployment `f006dce3-9eef-484e-87f4-9759ff00b63d` succeeded to `https://git-forge-exit-drill.sociobot.in` on 2026-08-28.
+- Live checks after deployment: `/demo` returned 200; `/not-a-route` returned 404; the registered Team Pack checkout returned 303. `verify-url.sh` reported a 800 ms load with zero console errors and the required title/lang/one-h1/main/alt checks.
+- Live Chromium check at `/demo`: no desktop or 390px overflow, zero console errors, and zero axe serious/critical findings.
+
 ## Known limits
 
 - API mode deliberately does not claim repository preservation because GitHub metadata APIs do not provide the Git object graph. Use a local export containing a valid mirror or bundle for a readiness decision.
