@@ -3,17 +3,11 @@
   "exported_at": "2026-08-20T16:40:00Z",
   "artifacts": {
     "git_repository": 1,
-    "issues": 18,
-    "pull_requests": 12,
-    "releases": 3,
-    "release_assets": 5,
-    "actions_workflows": 4,
-    "actions_runs": 31,
-    "branch_protection": 2,
-    "webhooks": 2,
-    "secrets": 0,
-    "packages": 1,
-    "discussions": 0,
-    "git_lfs": 0
+    "issues": 2,
+    "pull_requests": 2,
+    "releases": 1,
+    "release_assets": 2,
+    "actions_workflows": 1,
+    "actions_runs": 1
   }
 }

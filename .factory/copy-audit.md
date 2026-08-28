@@ -15,7 +15,7 @@ Checked 2026-08-28. Word counts treat hyphenated terms and prices as one word. H
 | Gaps stay visible. | 3 | pass |
 | See the gap before it becomes downtime | 8 | pass |
 | The sample repository has code, issues, releases, and build history. | 10 | pass |
-| Its report stops the move when evidence cannot cross. | 9 | pass |
+| It marks a count captured only when valid records back it. | 10 | pass |
 | Run one repeatable drill | 4 | pass |
 | Inventory the source | 3 | pass |
 | Read an extracted export or an authorized GitHub API repository. | 10 | pass |

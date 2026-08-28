@@ -44,6 +44,12 @@ pub struct Inventory {
     pub source: String,
     pub captured_at_unix: u64,
     pub artifacts: BTreeMap<String, u64>,
+    /// Recognized export files or manifest declarations that could not be
+    /// backed by parseable records. These are deliberately separate from a
+    /// missing artifact: they tell the operator that a file or declared total
+    /// exists, but it is not evidence they can rely on for cutover.
+    #[serde(default)]
+    pub incomplete: BTreeMap<String, String>,
     #[serde(default)]
     pub unavailable: BTreeMap<String, String>,
 }
@@ -104,6 +110,9 @@ pub struct ReadinessReport {
     pub mapping_updated: String,
     pub outcome: String,
     pub findings: Vec<Finding>,
+    #[serde(default)]
+    pub incomplete: BTreeMap<String, String>,
+    #[serde(default)]
     pub unavailable: BTreeMap<String, String>,
     pub restore_checklist: Vec<String>,
 }
@@ -172,7 +181,9 @@ pub fn inventory_local(root: &Path) -> Result<(Inventory, Vec<EvidenceFile>)> {
         );
     }
 
+    let mut declared = BTreeMap::new();
     let mut artifacts = BTreeMap::new();
+    let mut incomplete = BTreeMap::new();
     let manifest_path = root.join("manifest.json");
     let mut repository = root
         .file_name()
@@ -193,12 +204,9 @@ pub fn inventory_local(root: &Path) -> Result<(Inventory, Vec<EvidenceFile>)> {
             repository = name;
         }
         if let Some(explicit) = manifest.artifacts {
-            artifacts.extend(explicit);
+            declared = explicit;
         }
     }
-    // A manifest is metadata, not repository evidence. Never let a claimed count
-    // turn into a successful repository capture without real Git object bytes.
-    artifacts.remove("git_repository");
 
     let mut evidence = Vec::with_capacity(paths.len());
     let mut total = 0_u64;
@@ -222,7 +230,24 @@ pub fn inventory_local(root: &Path) -> Result<(Inventory, Vec<EvidenceFile>)> {
             .unwrap_or(path)
             .to_string_lossy()
             .replace('\\', "/");
-        infer_artifact(&relative, &bytes, &mut artifacts);
+        if let Some(kind) = artifact_kind(&relative) {
+            match parsed_artifact_counts(kind, &bytes) {
+                Ok(counts) => {
+                    for (artifact, count) in counts {
+                        *artifacts.entry(artifact).or_insert(0) += count;
+                    }
+                }
+                Err(reason) => {
+                    incomplete.entry(kind.to_owned()).or_insert_with(|| {
+                        format!(
+                            "{} is not valid {} evidence: {reason}",
+                            relative,
+                            label(kind)
+                        )
+                    });
+                }
+            }
+        }
         evidence.push(evidence_file(relative, bytes));
     }
 
@@ -230,7 +255,29 @@ pub fn inventory_local(root: &Path) -> Result<(Inventory, Vec<EvidenceFile>)> {
         artifacts.insert("git_repository".to_owned(), 1);
     }
 
-    if artifacts.is_empty() {
+    for (artifact, expected) in declared {
+        if artifact == "git_repository" {
+            continue;
+        }
+        if !ARTIFACT_ORDER.contains(&artifact.as_str()) {
+            continue;
+        }
+        let actual = artifacts.get(&artifact).copied();
+        if actual != Some(expected) {
+            incomplete.entry(artifact.clone()).or_insert_with(|| match actual {
+                Some(found) => format!(
+                    "manifest.json declares {expected} {} but parseable export records contain {found}",
+                    label(&artifact)
+                ),
+                None => format!(
+                    "manifest.json declares {expected} {} but no corresponding parseable export records were found",
+                    label(&artifact)
+                ),
+            });
+        }
+    }
+
+    if artifacts.is_empty() && incomplete.is_empty() {
         bail!(
             "no supported GitHub artifacts were found; add manifest.json or common export JSON files"
         );
@@ -242,6 +289,7 @@ pub fn inventory_local(root: &Path) -> Result<(Inventory, Vec<EvidenceFile>)> {
             source: format!("local export: {}", root.display()),
             captured_at_unix: now_unix(),
             artifacts,
+            incomplete,
             unavailable: BTreeMap::new(),
         },
         evidence,
@@ -272,9 +320,12 @@ fn collect_files(root: &Path) -> Result<Vec<PathBuf>> {
     Ok(files)
 }
 
-fn infer_artifact(path: &str, bytes: &[u8], artifacts: &mut BTreeMap<String, u64>) {
+fn artifact_kind(path: &str) -> Option<&'static str> {
     let name = path.to_ascii_lowercase();
-    let kind = if name.contains("pull_request") || name.contains("pulls") {
+    if !name.ends_with(".json") || name.ends_with("manifest.json") {
+        return None;
+    }
+    if name.contains("pull_request") || name.contains("pulls") {
         Some("pull_requests")
     } else if name.contains("workflow_run") || name.contains("action_run") {
         Some("actions_runs")
@@ -300,12 +351,68 @@ fn infer_artifact(path: &str, bytes: &[u8], artifacts: &mut BTreeMap<String, u64
         Some("git_lfs")
     } else {
         None
-    };
-    if let Some(kind) = kind {
-        artifacts
-            .entry(kind.to_owned())
-            .or_insert_with(|| json_count(bytes));
     }
+}
+
+/// Parse only records that are actually present in a recognized export file.
+/// A `total_count` is useful metadata, but it is never a substitute for the
+/// records that a restore drill needs to preserve.
+fn parsed_artifact_counts(
+    kind: &str,
+    bytes: &[u8],
+) -> std::result::Result<BTreeMap<String, u64>, String> {
+    let value: Value = serde_json::from_slice(bytes).map_err(|error| error.to_string())?;
+    let mut counts = BTreeMap::new();
+    let record_count = match value {
+        Value::Array(items) => items.len() as u64,
+        Value::Object(map) => {
+            let collection_keys: &[&str] = match kind {
+                "actions_workflows" => &["workflows", "items"],
+                "actions_runs" => &["workflow_runs", "items"],
+                "pull_requests" => &["pull_requests", "pulls", "items"],
+                "issues" => &["issues", "items"],
+                "releases" => &["releases", "items"],
+                _ => &["items"],
+            };
+            if let Some(records) = collection_keys
+                .iter()
+                .find_map(|key| map.get(*key).and_then(Value::as_array))
+            {
+                records.len() as u64
+            } else if map.contains_key("id")
+                || map.contains_key("number")
+                || map.contains_key("tag_name")
+            {
+                1
+            } else if map.get("total_count").is_some_and(Value::is_u64) {
+                0
+            } else {
+                return Err("it does not contain an array of export records".to_owned());
+            }
+        }
+        _ => return Err("it must contain an array or object of export records".to_owned()),
+    };
+    counts.insert(kind.to_owned(), record_count);
+
+    if kind == "releases" {
+        let assets = match serde_json::from_slice::<Value>(bytes) {
+            Ok(Value::Array(releases)) => releases,
+            Ok(Value::Object(map)) => map
+                .get("releases")
+                .or_else(|| map.get("items"))
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default(),
+            _ => Vec::new(),
+        };
+        let asset_count = assets
+            .iter()
+            .filter_map(|release| release.get("assets").and_then(Value::as_array))
+            .map(Vec::len)
+            .sum::<usize>() as u64;
+        counts.insert("release_assets".to_owned(), asset_count);
+    }
+    Ok(counts)
 }
 
 /// Prove that an export contains an object database Git itself can read. A
@@ -602,6 +709,7 @@ pub fn inventory_github(repository: &str, token: &str) -> Result<(Inventory, Vec
             source: format!("GitHub API: {repository}"),
             captured_at_unix: now_unix(),
             artifacts,
+            incomplete: BTreeMap::new(),
             unavailable,
         },
         evidence,
@@ -717,7 +825,8 @@ pub fn build_report(
 
     for artifact in ARTIFACT_ORDER {
         let count = inventory.artifacts.get(*artifact).copied();
-        let captured = count.is_some();
+        let incomplete = inventory.incomplete.get(*artifact);
+        let captured = count.is_some() && incomplete.is_none();
         let critical = critical_artifacts.contains(artifact);
         let capability = target
             .capabilities
@@ -728,7 +837,14 @@ pub fn build_report(
                 note: "No mapping exists. Check the target documentation before cutover."
                     .to_owned(),
             });
-        let (result, next_step) = if !captured {
+        let (result, next_step) = if let Some(reason) = incomplete {
+            if critical {
+                blocked = true;
+            } else {
+                review = true;
+            }
+            ("incomplete evidence".to_owned(), reason.clone())
+        } else if !captured {
             if critical {
                 blocked = true;
             } else {
@@ -789,6 +905,7 @@ pub fn build_report(
         mapping_updated: mapping_updated.to_owned(),
         outcome,
         findings,
+        incomplete: inventory.incomplete.clone(),
         unavailable: inventory.unavailable.clone(),
         restore_checklist,
     }
@@ -853,9 +970,13 @@ fn render_markdown(report: &ReadinessReport, archive_sha256: &str) -> String {
         "## Findings\n\n| Artifact | Captured | Target | Result |\n| --- | ---: | --- | --- |\n",
     );
     for finding in &report.findings {
-        let captured = finding
-            .count
-            .map_or_else(|| "No".to_owned(), |count| format!("Yes ({count})"));
+        let captured = if finding.captured {
+            format!("Yes ({})", finding.count.unwrap_or(0))
+        } else if let Some(count) = finding.count {
+            format!("No ({} valid records)", count)
+        } else {
+            "No".to_owned()
+        };
         output.push_str(&format!(
             "| {} | {} | {} | {} |\n",
             label(&finding.artifact),
@@ -875,6 +996,12 @@ fn render_markdown(report: &ReadinessReport, archive_sha256: &str) -> String {
             label(&finding.artifact),
             finding.next_step
         ));
+    }
+    if !report.incomplete.is_empty() {
+        output.push_str("\n## Incomplete evidence\n\n");
+        for (artifact, reason) in &report.incomplete {
+            output.push_str(&format!("- **{}:** {}\n", label(artifact), reason));
+        }
     }
     if !report.unavailable.is_empty() {
         output.push_str("\n## API evidence not available\n\n");
@@ -1047,7 +1174,7 @@ pub fn write_portfolio(results: &[DrillResult], target: &str, output: &Path) -> 
         "# Exit drill portfolio\n\n**Target:** {target}  \n**Repositories:** {}\n\n",
         results.len()
     );
-    body.push_str("| Repository | Outcome | Missing evidence | Target gaps | Restore tests |\n| --- | --- | ---: | ---: | ---: |\n");
+    body.push_str("| Repository | Outcome | Evidence gaps | Target gaps | Restore tests |\n| --- | --- | ---: | ---: | ---: |\n");
     for result in results {
         body.push_str(&format!(
             "| {} | {} | {} | {} | {} |\n",
@@ -1057,7 +1184,12 @@ pub fn write_portfolio(results: &[DrillResult], target: &str, output: &Path) -> 
                 .finding_counts
                 .get("missing evidence")
                 .copied()
-                .unwrap_or(0),
+                .unwrap_or(0)
+                + result
+                    .finding_counts
+                    .get("incomplete evidence")
+                    .copied()
+                    .unwrap_or(0),
             result
                 .finding_counts
                 .get("target gap")
@@ -1143,6 +1275,7 @@ mod tests {
                 source: "fixture".to_owned(),
                 captured_at_unix: 1,
                 artifacts: BTreeMap::from([("issues".to_owned(), 2)]),
+                incomplete: BTreeMap::new(),
                 unavailable: BTreeMap::new(),
             },
             files: vec![evidence_file(
@@ -1169,6 +1302,7 @@ mod tests {
             source: "fixture".to_owned(),
             captured_at_unix: 1,
             artifacts: BTreeMap::from([("git_repository".to_owned(), 1)]),
+            incomplete: BTreeMap::new(),
             unavailable: BTreeMap::new(),
         };
         let mappings = load_mappings().unwrap();

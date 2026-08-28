@@ -165,6 +165,10 @@ fn execute(cli: Cli) -> Result<()> {
                     include_bytes!("../examples/atlas-notes-export/workflow_runs.json").as_slice(),
                 ),
                 (
+                    "workflows.json",
+                    include_bytes!("../examples/atlas-notes-export/workflows.json").as_slice(),
+                ),
+                (
                     "LICENSES.txt",
                     include_bytes!("../examples/atlas-notes-export/LICENSES.txt").as_slice(),
                 ),

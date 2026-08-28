@@ -42,6 +42,13 @@
     "sandbox": "bundled export; assert source text is absent from archive bytes and verify command succeeds"
   },
   {
+    "id": "evidence-complete",
+    "claim": "A captured artifact count is backed by valid exported records.",
+    "where": "landing preview, demo recording, README",
+    "test": "npm test -- --grep @claim:evidence-complete",
+    "sandbox": "open the produced reports and archives for malformed JSON, manifest-only totals, and the bundled export; assert only valid matching records are captured"
+  },
+  {
     "id": "token-private",
     "claim": "GitHub API tokens are read from an environment variable and never written to reports or evidence.",
     "where": "README API instructions and privacy page",

@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import { execFile as execFileCallback } from 'node:child_process';
 import { createServer } from 'node:http';
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
@@ -37,9 +37,58 @@ test('@claim:no-telemetry the site demo makes no third-party requests', async ({
 test('@claim:recorded-cli the demo transcript matches the bundled CLI drill', async ({ page }) => {
   const { stdout } = await execFile(binary, ['demo']);
   await page.goto('/demo');
-  for (const line of ['Repository: acme-labs/atlas-notes', 'Target: Forgejo 9.0', 'Outcome: BLOCKED']) {
+  for (const line of [
+    'Demo — sample data, nothing was read from your workspace.',
+    'Repository: acme-labs/atlas-notes',
+    'Target: Forgejo 9.0',
+    'Outcome: BLOCKED',
+    'Demo archive passphrase: demo-only-passphrase',
+    'Choose a new output directory to run this demo again.',
+  ]) {
     expect(stdout).toContain(line);
     await expect(page.getByText(line, { exact: true })).toBeVisible();
+  }
+});
+
+test('@claim:evidence-complete captured counts require valid exported records', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'gfed-evidence-complete-'));
+  const environment = { ...process.env, GFED_PASSPHRASE: 'browser claim passphrase' };
+
+  const invalid = join(root, 'invalid');
+  await mkdir(invalid);
+  await writeFile(join(invalid, 'issues.json'), 'this is not json');
+  const invalidOutput = join(root, 'invalid-output');
+  await execFile(binary, ['drill', '--source', invalid, '--target', 'forgejo:9.0', '--output', invalidOutput], { env: environment });
+  await execFile(binary, ['verify', join(invalidOutput, 'evidence.gfed')], { env: environment });
+  const invalidReport = JSON.parse(await readFile(join(invalidOutput, 'readiness.json'), 'utf8'));
+  expect(invalidReport.findings.find((finding: { artifact: string }) => finding.artifact === 'issues')).toMatchObject({
+    captured: false,
+    count: null,
+    result: 'incomplete evidence',
+  });
+
+  const manifestOnly = join(root, 'manifest-only');
+  await mkdir(manifestOnly);
+  await writeFile(join(manifestOnly, 'manifest.json'), JSON.stringify({
+    artifacts: { issues: 999, pull_requests: 888, releases: 777, actions_workflows: 666, actions_runs: 555 },
+  }));
+  const manifestOutput = join(root, 'manifest-output');
+  await execFile(binary, ['drill', '--source', manifestOnly, '--target', 'forgejo:9.0', '--output', manifestOutput], { env: environment });
+  await execFile(binary, ['verify', join(manifestOutput, 'evidence.gfed')], { env: environment });
+  const manifestReport = JSON.parse(await readFile(join(manifestOutput, 'readiness.json'), 'utf8'));
+  for (const artifact of ['issues', 'pull_requests', 'releases', 'actions_workflows', 'actions_runs']) {
+    expect(manifestReport.findings.find((finding: { artifact: string }) => finding.artifact === artifact)).toMatchObject({
+      captured: false,
+      result: 'incomplete evidence',
+    });
+  }
+
+  const sampleOutput = join(root, 'sample-output');
+  await execFile(binary, ['drill', '--source', sample, '--target', 'forgejo:9.0', '--output', sampleOutput], { env: environment });
+  await execFile(binary, ['verify', join(sampleOutput, 'evidence.gfed')], { env: environment });
+  const sampleReport = JSON.parse(await readFile(join(sampleOutput, 'readiness.json'), 'utf8'));
+  for (const [artifact, count] of [['issues', 2], ['pull_requests', 2], ['releases', 1], ['release_assets', 2], ['actions_workflows', 1], ['actions_runs', 1]]) {
+    expect(sampleReport.findings.find((finding: { artifact: string }) => finding.artifact === artifact)).toMatchObject({ captured: true, count });
   }
 });
 
@@ -84,7 +133,7 @@ test('@claim:encrypted-evidence archive hides source text and verifies', async (
   expect(raw.includes(Buffer.from('Keep author attribution'))).toBe(false);
   const { stdout } = await execFile(binary, ['verify', archive], { env: environment });
   expect(stdout).toContain('Archive verified');
-  expect(stdout).toContain('Evidence files: 6');
+  expect(stdout).toContain('Evidence files: 7');
 });
 
 test('@claim:token-private API token stays out of every output file', async () => {
@@ -200,6 +249,22 @@ test('desktop and 390px mobile render without page overflow or console errors', 
   await expect(page.locator('h1')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   expect(errors).toEqual([]);
+});
+
+test('390px interactive controls meet the 44px touch-target baseline', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const route of ['/', '/demo', '/privacy', '/terms']) {
+    await page.goto(route);
+    const controls = page.locator('a, button');
+    for (let index = 0; index < await controls.count(); index += 1) {
+      const control = controls.nth(index);
+      if (!await control.isVisible()) continue;
+      const box = await control.boundingBox();
+      expect(box, `${route} control ${index} has a box`).not.toBeNull();
+      expect(box!.width, `${route} control ${index} width`).toBeGreaterThanOrEqual(44);
+      expect(box!.height, `${route} control ${index} height`).toBeGreaterThanOrEqual(44);
+    }
+  }
 });
 
 test('the demo reloads offline after its first visit', async ({ page, context }) => {

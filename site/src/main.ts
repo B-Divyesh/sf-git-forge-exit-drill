@@ -12,13 +12,8 @@ const terminalLines = [
   { kind: 'plain', text: 'Repository: acme-labs/atlas-notes' },
   { kind: 'plain', text: 'Target: Forgejo 9.0' },
   { kind: 'danger', text: 'Outcome: BLOCKED' },
-  { kind: 'pass', text: '✓ Git repository · captured · native' },
-  { kind: 'pass', text: '✓ Issues · 18 captured · native' },
-  { kind: 'warn', text: '! Pull requests · 12 captured · restore test' },
-  { kind: 'danger', text: '× Actions run history · target gap' },
-  { kind: 'warn', text: '! Secrets · missing evidence' },
-  { kind: 'plain', text: 'Encrypted evidence: …/result/evidence.gfed' },
-  { kind: 'plain', text: 'Report: …/result/readiness.md' },
+  { kind: 'plain', text: 'Demo archive passphrase: demo-only-passphrase' },
+  { kind: 'plain', text: 'Choose a new output directory to run this demo again.' },
 ];
 
 function header(): string {
@@ -69,7 +64,7 @@ function home(): string {
 
     <section class="preview ruled" aria-labelledby="preview-title">
       <div class="section-index">FIELD TEST / 001</div>
-      <div><h2 id="preview-title">See the gap before it becomes downtime</h2><p>The sample repository has code, issues, releases, and build history. Its report stops the move when evidence cannot cross.</p></div>
+      <div><h2 id="preview-title">See the gap before it becomes downtime</h2><p>The sample repository has code, issues, releases, and build history. It marks a count captured only when valid records back it.</p></div>
       ${terminal(true)}
     </section>
 
@@ -123,7 +118,7 @@ function demo(): string {
     <p class="lede">This recording comes from the real CLI and its bundled Atlas Notes export.</p>
     ${terminal()}
     <section class="demo-findings" aria-labelledby="finding-title">
-      <div><p class="outcome"><span>BLOCKED</span> Cutover should wait</p><h2 id="finding-title">The report found two critical risks</h2><p>Past Actions runs cannot become native Forgejo history. Secret values are also absent from GitHub exports.</p></div>
+      <div><p class="outcome"><span>BLOCKED</span> Cutover should wait</p><h2 id="finding-title">The report found critical risks</h2><p>Past Actions runs cannot become native Forgejo history. The report also asks for missing export evidence before cutover.</p></div>
       <ol><li><span>01</span>Save old build logs and artifact checksums.</li><li><span>02</span>Recreate secrets through the target’s secure process.</li><li><span>03</span>Run one build from a pinned commit.</li></ol>
     </section>
     <div class="demo-next"><a class="button primary" href="/#install" data-real>Run your own drill</a><p>The CLI reads your export locally.</p></div>
