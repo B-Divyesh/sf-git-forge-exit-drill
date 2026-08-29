@@ -108,8 +108,14 @@ git-forge-exit-drill capabilities
 The free CLI runs one-repository drills. A $39 one-time Team Pack purchase adds
 the `portfolio` command for up to ten export directories and one consolidated
 readiness report in Markdown. Buy Team Pack or enter an existing license on
-the product site. The CLI reads the license from `GFED_LICENSE` and verifies it
-with the Sociobot billing API.
+the product site. After checkout, copy the shown private license token. Set it
+in the terminal that runs the portfolio command:
+
+```sh
+export GFED_LICENSE='paste-license-here'
+```
+
+The CLI reads `GFED_LICENSE` and verifies it with the Sociobot billing API.
 
 ## Develop and verify
 

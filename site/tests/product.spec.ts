@@ -16,6 +16,14 @@ async function createValidMirror(source: string) {
   await execFile('git', ['clone', '--mirror', '--quiet', process.cwd(), join(source, 'mirror.git')]);
 }
 
+async function installCleanCli(root: string): Promise<string> {
+  const installation = join(root, 'installed-cli');
+  await execFile('cargo', ['install', '--locked', '--path', process.cwd(), '--root', installation], {
+    env: { ...process.env, CARGO_TARGET_DIR: join(process.cwd(), 'target') },
+  });
+  return join(installation, 'bin', 'git-forge-exit-drill');
+}
+
 test('@claim:demo-private sample demo is immediate and same-origin only', async ({ page }) => {
   const origins = new Set<string>();
   page.on('request', (request) => origins.add(new URL(request.url()).origin));
@@ -296,9 +304,28 @@ test('@claim:token-private API token stays out of every output file', async () =
   expect(report.findings.find((finding: { artifact: string }) => finding.artifact === 'git_repository')).toMatchObject({ captured: false, result: 'missing evidence' });
 });
 
-test('@claim:team-portfolio valid Team Pack license creates a ten-repository-capable report', async () => {
+test('@claim:team-portfolio checkout-returned Team Pack license runs portfolio from a clean installed CLI', async ({ page, context }) => {
+  test.setTimeout(120_000);
+  const returnedToken = 'returned-cli-handoff-license';
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: 'http://127.0.0.1:4173' });
+  await page.route(`https://api.sociobot.in/api/v1/products/git-forge-exit-drill/verify?license=${returnedToken}`, (route) => route.fulfill({ json: { valid: true, reason: 'ok', expires_at: null } }));
+  await page.goto(`/?license=${returnedToken}`);
+  await expect(page).not.toHaveURL(/license=/);
+  await expect(page.getByText('Team Pack license active.')).toBeVisible();
+  await expect(page.getByRole('heading', { level: 3, name: 'Use your license in the CLI' })).toBeVisible();
+  await expect(page.getByLabel('Team Pack license token')).toHaveValue(returnedToken);
+  await expect(page.getByLabel('Team Pack license token')).toHaveAttribute('type', 'password');
+  await expect(page.locator('body')).not.toContainText(returnedToken);
+  await expect(page.getByText("export GFED_LICENSE='paste-license-here'", { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Copy license' }).click();
+  await expect(page.getByText('License copied. Keep it private.')).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(returnedToken);
+  await page.getByRole('button', { name: 'Copy setup command' }).click();
+  await expect(page.getByText('Setup command copied. Run it in your terminal.')).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(`export GFED_LICENSE='${returnedToken}'`);
+
   const server = createServer((request, response) => {
-    expect(request.url).toContain('/api/v1/products/git-forge-exit-drill/verify?license=test-license');
+    expect(request.url).toContain(`/api/v1/products/git-forge-exit-drill/verify?license=${returnedToken}`);
     response.writeHead(200, { 'content-type': 'application/json' });
     response.end(JSON.stringify({ valid: true, reason: 'ok', expires_at: null }));
   });
@@ -306,15 +333,16 @@ test('@claim:team-portfolio valid Team Pack license creates a ten-repository-cap
   const address = server.address();
   if (!address || typeof address === 'string') throw new Error('mock server did not start');
   const root = await mkdtemp(join(tmpdir(), 'gfed-team-'));
+  const installedBinary = await installCleanCli(root);
   const tenSources = Array.from({ length: 10 }, () => ['--source', sample]).flat();
   try {
-    await execFile(binary, [
+    await execFile(installedBinary, [
       'portfolio', ...tenSources, '--target', 'forgejo:9.0', '--output', join(root, 'portfolio'),
     ], {
       env: {
         ...process.env,
         GFED_PASSPHRASE: 'browser claim passphrase',
-        GFED_LICENSE: 'test-license',
+        GFED_LICENSE: returnedToken,
         GFED_BILLING_BASE: `http://127.0.0.1:${address.port}`,
         XDG_CONFIG_HOME: join(root, 'config'),
       },
@@ -327,13 +355,13 @@ test('@claim:team-portfolio valid Team Pack license creates a ten-repository-cap
   expect(report.match(/acme-labs\/atlas-notes/g)).toHaveLength(10);
 
   const elevenSources = Array.from({ length: 11 }, () => ['--source', sample]).flat();
-  await expect(execFile(binary, [
+  await expect(execFile(installedBinary, [
     'portfolio', ...elevenSources, '--target', 'forgejo:9.0', '--output', join(root, 'too-many'),
   ], {
     env: {
       ...process.env,
       GFED_PASSPHRASE: 'browser claim passphrase',
-      GFED_LICENSE: 'test-license',
+      GFED_LICENSE: returnedToken,
       GFED_BILLING_BASE: 'http://127.0.0.1:1',
       XDG_CONFIG_HOME: join(root, 'eleven-config'),
     },
@@ -469,6 +497,38 @@ test('@claim:license-browser-storage license return, restore, and removal use th
   await page.getByRole('button', { name: 'Remove saved license' }).click();
   await expect(page.getByText('Saved license removed.')).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('sb_license:git-forge-exit-drill'))).toBeNull();
+});
+
+test('malformed saved license cache is discarded and checked without a page error', async ({ page }) => {
+  const token = 'malformed-cache-token';
+  const pageErrors: string[] = [];
+  let verificationRequests = 0;
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+  await page.route(`https://api.sociobot.in/api/v1/products/git-forge-exit-drill/verify?license=${token}`, (route) => {
+    verificationRequests += 1;
+    return route.fulfill({ json: { valid: true, reason: 'ok', expires_at: null } });
+  });
+  await page.goto('/');
+  await page.evaluate((savedToken) => {
+    localStorage.setItem('sb_license:git-forge-exit-drill', savedToken);
+    localStorage.setItem('sb_license_cache:git-forge-exit-drill', '{not json');
+  }, token);
+  await page.reload();
+  await expect(page.getByText('Team Pack license active.')).toBeVisible();
+  expect(verificationRequests).toBe(1);
+  expect(pageErrors).toEqual([]);
+  expect(JSON.parse(await page.evaluate(() => localStorage.getItem('sb_license_cache:git-forge-exit-drill') ?? '{}'))).toMatchObject({ token, valid: true });
+});
+
+test('Reset demo keeps keyboard focus on the replacement reset button', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/demo');
+  const reset = page.getByRole('button', { name: 'Reset demo' });
+  await reset.focus();
+  await expect(reset).toBeFocused();
+  await page.keyboard.press('Space');
+  await expect(page.getByRole('button', { name: 'Reset demo' })).toBeFocused();
+  await expect(page.locator('#route-status')).toHaveText('Demo reset with fresh sample data');
 });
 
 test('returned invalid license is checked once and its cached notice stays visible', async ({ page }) => {

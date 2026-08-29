@@ -102,6 +102,17 @@ p { max-width: var(--measure); }
 .license-form label { display: block; margin-bottom: 8px; font: 600 .8rem/1 ui-monospace, monospace; }
 .license-form input { width: 100%; min-height: 44px; margin-bottom: 10px; border: 1px solid var(--paper-muted); background: var(--ink-900); color: var(--paper); padding: 8px 10px; }
 .license-status { color: var(--signal)!important; min-height: 24px; }
+.license-handoff { margin-top: 20px; padding: 20px; border: 1px solid var(--signal); background: var(--ink-900); }
+.license-handoff h3 { margin: 0 0 10px; font: 700 .95rem/1.25 ui-monospace, monospace; }
+.license-handoff p { margin: 10px 0; color: var(--paper-muted); font-size: .84rem; }
+.license-handoff label { display: block; margin: 16px 0 8px; font: 600 .8rem/1 ui-monospace, monospace; }
+.license-token-control { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; }
+.license-token-control input { min-width: 0; min-height: 44px; border: 1px solid var(--paper-muted); background: var(--ink-950); color: var(--paper); padding: 8px 10px; font: .8rem/1.2 ui-monospace, monospace; }
+.license-token-control .button { width: auto; margin: 0; white-space: nowrap; }
+.cli-command { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px; background: var(--ink-950); border-left: 3px solid var(--signal); }
+.cli-command code { overflow-wrap: anywhere; color: var(--paper); font: .75rem/1.35 ui-monospace, monospace; }
+.cli-command button { min-height: 44px; border: 1px solid var(--paper-muted); background: transparent; color: var(--paper); padding: 6px 10px; cursor: pointer; font: 600 .72rem/1 ui-monospace, monospace; white-space: nowrap; }
+.license-handoff-status { min-height: 20px; color: var(--signal)!important; }
 
 .site-footer { padding: 40px 0 48px; display: grid; grid-template-columns: 1fr auto auto; gap: 32px; border-top: 1px solid var(--ink-800); color: var(--paper-muted); font-size: .78rem; }
 .site-footer p { margin: 0; }.site-footer div { display: flex; gap: 18px; }.site-footer a { color: var(--paper-muted); }
@@ -145,6 +156,7 @@ p { max-width: var(--measure); }
   .hero-copy { padding: 64px 20px 48px; } h1 { font-size: 2.75rem; }.hero-action { align-items: flex-start; flex-direction: column; }.hero-art, .hero-art img { min-height: 320px; }
   .ruled, .how, .boundaries, .page-shell { width: calc(100% - 32px); }.ruled, .how, .boundaries { padding: 72px 0; }
   .preview, .how, .install, .boundaries, .pricing { display: block; }.section-index { margin-bottom: 24px; }.preview .terminal, .install .code-block, .boundary-list, .purchase { margin-top: 36px; }
+  .license-token-control { grid-template-columns: 1fr; }.cli-command { align-items: flex-start; flex-direction: column; }
   .steps { margin-top: 34px; }.steps li { grid-template-columns: 42px 1fr; }.terminal pre { font-size: .68rem; min-height: 405px; padding: 16px; overflow-x: auto; overflow-wrap: anywhere; white-space: pre-wrap; }
   .site-footer { width: calc(100% - 32px); grid-template-columns: 1fr; gap: 14px; }.site-footer div { flex-wrap: wrap; }
   .demo-banner { align-items: flex-start; flex-direction: column; padding: 10px 16px; }.demo-page { padding-top: 64px; }.demo-findings { grid-template-columns: 1fr; gap: 16px; }.demo-next { align-items: flex-start; flex-direction: column; }

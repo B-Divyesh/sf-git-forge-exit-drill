@@ -97,13 +97,22 @@ function home(): string {
       <div class="purchase">
         <a class="button primary" href="${BILLING}/api/v1/products/${PRODUCT}/checkout">Buy Team Pack — $39 <span aria-label="(hosted checkout)">↗</span></a>
         <p>You buy from Sociobot, which handles payment and receipts.</p>
-        <button class="button secondary" type="button" data-show-license>Enter Team Pack license</button>
+        <button class="button secondary" type="button" data-show-license-form>Enter Team Pack license</button>
         <form class="license-form" hidden>
           <label for="license-token">License token</label>
           <input id="license-token" name="license" type="password" autocomplete="off" required />
           <button class="button secondary" type="submit">Verify license</button>
         </form>
         <p class="license-status" role="status" aria-live="polite"></p>
+        <section class="license-handoff" data-license-handoff hidden aria-labelledby="cli-license-title">
+          <h3 id="cli-license-title">Use your license in the CLI</h3>
+          <p>Copy this private token, then set it in the terminal that runs the portfolio command.</p>
+          <label for="cli-license-token">Team Pack license token</label>
+          <div class="license-token-control"><input id="cli-license-token" type="password" readonly autocomplete="off" spellcheck="false" /><button class="button secondary" type="button" data-show-license aria-pressed="false">Show license</button><button class="button secondary" type="button" data-copy-license>Copy license</button></div>
+          <p>Set the token before running <code>portfolio</code>.</p>
+          <div class="cli-command"><code>export GFED_LICENSE='paste-license-here'</code><button type="button" data-copy-license-command>Copy setup command</button></div>
+          <p class="license-handoff-status" role="status" aria-live="polite"></p>
+        </section>
         <p class="legal-links"><a href="/privacy" data-link>Privacy</a> · <a href="/terms" data-link>Terms</a></p>
       </div>
     </section>
@@ -205,6 +214,7 @@ function bindActions(): void {
   document.querySelector<HTMLButtonElement>('[data-reset-demo]')?.addEventListener('click', () => {
     localStorage.removeItem('demo:gfed:started');
     render(false);
+    document.querySelector<HTMLButtonElement>('[data-reset-demo]')?.focus();
     announce('Demo reset with fresh sample data');
   });
   document.querySelector<HTMLButtonElement>('[data-copy]')?.addEventListener('click', async (event) => {
@@ -213,15 +223,19 @@ function bindActions(): void {
     button.textContent = 'Commands copied';
     announce('Install commands copied');
   });
-  document.querySelector<HTMLButtonElement>('[data-show-license]')?.addEventListener('click', () => {
+  document.querySelector<HTMLButtonElement>('[data-show-license-form]')?.addEventListener('click', () => {
     const form = document.querySelector<HTMLFormElement>('.license-form')!;
     form.hidden = false;
     form.querySelector<HTMLInputElement>('input')?.focus();
   });
   document.querySelector<HTMLFormElement>('.license-form')?.addEventListener('submit', submitLicense);
+  document.querySelector<HTMLButtonElement>('[data-show-license]')?.addEventListener('click', toggleLicenseVisibility);
+  document.querySelector<HTMLButtonElement>('[data-copy-license]')?.addEventListener('click', () => copyLicenseValue('token'));
+  document.querySelector<HTMLButtonElement>('[data-copy-license-command]')?.addEventListener('click', () => copyLicenseValue('command'));
   document.querySelector<HTMLButtonElement>('[data-clear-license]')?.addEventListener('click', () => {
     localStorage.removeItem(`sb_license:${PRODUCT}`);
     localStorage.removeItem(`sb_license_cache:${PRODUCT}`);
+    hideLicenseHandoff();
     setLicenseStatus('Saved license removed.');
   });
 }
@@ -247,9 +261,11 @@ async function submitLicense(event: SubmitEvent): Promise<void> {
 
 async function verifyLicense(token: string): Promise<void> {
   const cacheKey = `sb_license_cache:${PRODUCT}`;
-  const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null') as { token?: string; valid: boolean; checkedAt: number } | null;
+  const cached = readLicenseCache(cacheKey);
   if (cached?.token === token && Date.now() - cached.checkedAt < 86_400_000) {
     setLicenseStatus(cached.valid ? 'Team Pack license active.' : 'License no longer active.');
+    if (cached.valid) showLicenseHandoff(token);
+    else hideLicenseHandoff();
     return;
   }
   try {
@@ -257,9 +273,90 @@ async function verifyLicense(token: string): Promise<void> {
     const verdict = await response.json() as { valid: boolean };
     localStorage.setItem(cacheKey, JSON.stringify({ token, valid: verdict.valid, checkedAt: Date.now() }));
     setLicenseStatus(verdict.valid ? 'Team Pack license active.' : 'License no longer active.');
+    if (verdict.valid) showLicenseHandoff(token);
+    else hideLicenseHandoff();
   } catch {
+    hideLicenseHandoff();
     setLicenseStatus('License check failed. Connect to the internet and try again.');
   }
+}
+
+type LicenseCache = { token: string; valid: boolean; checkedAt: number };
+
+function readLicenseCache(cacheKey: string): LicenseCache | null {
+  const raw = localStorage.getItem(cacheKey);
+  if (!raw) return null;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (
+      typeof parsed === 'object' && parsed !== null
+      && typeof (parsed as LicenseCache).token === 'string'
+      && typeof (parsed as LicenseCache).valid === 'boolean'
+      && Number.isFinite((parsed as LicenseCache).checkedAt)
+    ) return parsed as LicenseCache;
+  } catch {
+    // An interrupted browser write is a cache miss, not a page error.
+  }
+  localStorage.removeItem(cacheKey);
+  return null;
+}
+
+function showLicenseHandoff(token: string): void {
+  const handoff = document.querySelector<HTMLElement>('[data-license-handoff]');
+  const input = document.querySelector<HTMLInputElement>('#cli-license-token');
+  const toggle = document.querySelector<HTMLButtonElement>('[data-show-license]');
+  if (!handoff || !input) return;
+  input.value = token;
+  input.type = 'password';
+  if (toggle) {
+    toggle.textContent = 'Show license';
+    toggle.setAttribute('aria-pressed', 'false');
+  }
+  handoff.hidden = false;
+}
+
+function hideLicenseHandoff(): void {
+  const handoff = document.querySelector<HTMLElement>('[data-license-handoff]');
+  const input = document.querySelector<HTMLInputElement>('#cli-license-token');
+  const toggle = document.querySelector<HTMLButtonElement>('[data-show-license]');
+  if (input) input.value = '';
+  if (input) input.type = 'password';
+  if (toggle) {
+    toggle.textContent = 'Show license';
+    toggle.setAttribute('aria-pressed', 'false');
+  }
+  if (handoff) handoff.hidden = true;
+}
+
+function toggleLicenseVisibility(): void {
+  const input = document.querySelector<HTMLInputElement>('#cli-license-token');
+  const toggle = document.querySelector<HTMLButtonElement>('[data-show-license]');
+  if (!input || !toggle) return;
+  const visible = input.type === 'text';
+  input.type = visible ? 'password' : 'text';
+  toggle.textContent = visible ? 'Show license' : 'Hide license';
+  toggle.setAttribute('aria-pressed', String(!visible));
+}
+
+async function copyLicenseValue(kind: 'token' | 'command'): Promise<void> {
+  const input = document.querySelector<HTMLInputElement>('#cli-license-token');
+  const feedback = document.querySelector<HTMLElement>('.license-handoff-status');
+  const token = input?.value ?? '';
+  if (!token) return;
+  const value = kind === 'token' ? token : `export GFED_LICENSE=${shellQuote(token)}`;
+  try {
+    await navigator.clipboard.writeText(value);
+    if (feedback) feedback.textContent = kind === 'token' ? 'License copied. Keep it private.' : 'Setup command copied. Run it in your terminal.';
+    announce(kind === 'token' ? 'Team Pack license copied' : 'CLI setup command copied');
+  } catch {
+    input?.focus();
+    input?.select();
+    if (feedback) feedback.textContent = 'Select the license token, copy it, then paste it in your terminal.';
+  }
+}
+
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, "'\\''")}'`;
 }
 
 function setLicenseStatus(message: string): void {

@@ -12,8 +12,8 @@ marketing word.
 Run `npm run audit:copy` after changing copy. It fails until this audit is
 updated for the exact reviewed sources.
 
-- `site/src/main.ts: ddcc2e1d4796c0a030d8572f44cd7bbe8f2fc1dd830a8171d704eec0df6f2c55`
-- `README.md: 8915abba49b5de0adc71efacd3f9d7e10ccbed91ab1d9aebbe476c980cb74014`
+- `site/src/main.ts: 7685c1602ace47b543df4ffce75a7b282fe2eb9640fb48808fe3f718bfe0838d`
+- `README.md: 488baddec4324932df2ce4fffeb376125c34580fec210977f75ae7a918e989ec`
 
 ## Landing and route strings
 
@@ -24,7 +24,7 @@ updated for the exact reviewed sources.
 | Image and sample | descriptive alt; target-map caption; Sample result; Sample drill results; sample explanation; terminal label and all seven transcript lines | pass |
 | How it works | Run one repeatable drill; Inventory the source; Map the target; Plan the restore test; three explanations | pass |
 | Install and limits | Start with the bundled sample; install explanation; copy control; Linux download; Know what the CLI writes; limit list | pass |
-| Team Pack | Check ten repositories together; price sentence; two scope bullets; checkout label; license form; legal links | pass |
+| Team Pack | Check ten repositories together; price sentence; two scope bullets; checkout label; license form; hidden license handoff; legal links | pass |
 | Demo | demo banner; See a complete exit drill; recording explanation; blocked finding; three restore actions; Run your own drill | pass |
 | Privacy | all five headings, summaries, saved-license control, and contact line | pass |
 | Terms | all five headings, scope statements, Team Pack terms, and contact line | pass |
@@ -37,7 +37,20 @@ updated for the exact reviewed sources.
 | Introduction and demo | job statement; user; temporary-directory behavior; empty-output refusal | pass |
 | Install and local drill | installation; Linux binary; output names; encryption; record validation; Git-history evidence; archive file coverage | pass |
 | API, verification, and targets | token handling; metadata limitation; JSON output; error behavior; archive verification; target and repository-item definitions | pass |
-| Team Pack and privacy | free scope; $39 one-time scope; license route; three network boundaries; telemetry boundary | pass |
+| Team Pack and privacy | free scope; $39 one-time scope; checkout-to-terminal license handoff; three network boundaries; telemetry boundary | pass |
+
+## Repair copy checks
+
+| String | Words | Result |
+| --- | ---: | --- |
+| Use your license in the CLI | 6 | pass |
+| Copy this private token, then set it in the terminal that runs the portfolio command. | 15 | pass |
+| Team Pack license token | 4 | pass |
+| Set the token before running portfolio. | 6 | pass |
+| License copied. Keep it private. | 5 | pass |
+| Setup command copied. Run it in your terminal. | 8 | pass |
+| After checkout, copy the shown private license token. | 8 | pass |
+| Set it in the terminal that runs the portfolio command: | 10 | pass |
 | Development and license | requirements; build outputs; MIT notice | pass |
 
 ## Terminology table
