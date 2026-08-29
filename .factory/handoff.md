@@ -1,38 +1,73 @@
-# Adversarial review 1 handoff — 2026-08-29
+# Polish 1 handoff — 2026-08-29
 
 ## Outcome
 
-Review 1 is complete with a **FAIL** verdict. The full report is
-`.factory/review-1.md`. It records 34 findings: 16 high claim/honesty issues, 5
-medium structure/evidence issues, and 13 minor copy issues. No product code was
-changed.
+Released repair commit: `3b105d904bb336c1edec2c46ee0b1ff07baf1e6b`.
 
-The first-read test, one-click isolated demo, all nine declared claim tests,
-core CLI behavior, live links, accessibility baseline, distinctive visual
-identity, full test suite, production build, and every historical release
-blocker passed. PASS is withheld because the standard requires zero findings
-and no untested claim.
+Every finding in `.factory/review-1.md` is closed in `.factory/polish-1.md`.
+That document maps all 34 finding IDs to the implementation and evidence.
+There are no earlier review or polish documents in this repository. No known
+product gaps remain.
 
-## Verification performed
+The repair keeps the evidence-lattice visual identity. It adds no tracking,
+external fonts, or runtime dependency beyond the existing explicit Sociobot
+license verification and checkout links.
 
-- Fresh live Chromium contexts at 390×844, 1280×720, 1366×768, and 1440×900.
-- One-click demo entry, Reset, Start for real, storage isolation, same-origin
-  request log, and real CLI demo from a temporary working directory.
-- Every exact `.factory/claims.json` command from fresh clone
-  `/tmp/gfed-claims-clone.5H3IlI`: 9/9 passed.
-- `npm test`: 5 Rust unit, 13 CLI integration, and 21 Playwright tests passed.
-- `npm run build`: passed and produced `dist/site/` plus the release binary.
-- Live Axe on every route and the 404: zero violations.
-- `/opt/fleet/lib/verify-url.sh`: passed with no root-page console errors.
-- Internal/external link crawl, raw deep-link metadata, response headers,
-  designed 404, route focus/history, touch targets, and reduced motion.
-- Live/local SHA-256 comparison for HTML, JS, CSS, and Linux binary: identical.
-- Prior handoff and verification history checked finding by finding.
+## What changed
 
-## Main follow-up
+- Made `?demo=1` a direct isolated demo route with persistent banner, Reset
+  demo, and Start for real; tightened the matching CLI demo isolation test.
+- Registered and tested all page and README claims in `.factory/claims.json`.
+  The list has 21 uniquely tagged observable claim tests.
+- Closed the adversarial copy and honesty issues: plain first screen, scoped
+  boundaries, no invented device entitlement, consistent readiness-report
+  naming, and short README sentences.
+- Generated route-specific static metadata, real 404 behavior, back/history
+  focus restoration, desktop fact fitting, and mobile terminal wrapping.
+- Strengthened claim proof: release binary, live $39 checkout order summary,
+  full archive digest comparison, API and license network fixtures, and JSON
+  errors as well as JSON successes.
 
-Register or remove every unlisted claim, add the missing paid-license restore
-path or correct the README, fix route-source metadata, repair hash-history
-focus, fit all three facts at 1440×900, make the mobile transcript readable
-without undisclosed horizontal scrolling, and replace the flagged copy. After
-repair and deployment, rerun the review from scratch.
+## Verification
+
+Fresh clone evidence:
+
+- Clone: `/tmp/gfed-polish-clean` at `3b105d9`.
+- `npm ci --ignore-scripts --no-audit --no-fund` passed.
+- `npm test -- --grep @claim` passed all 21 claim tests.
+- `npm test` passed: TypeScript, 5 Rust unit tests, 13 CLI integration tests,
+  release build, and 34 Playwright tests.
+- `npm run audit:copy` passed.
+- `npm run build` passed. The build creates `dist/site/`; initial JS is
+  5.65 kB gzip and CSS is 3.57 kB gzip.
+
+Deployment and cold live checks:
+
+- Deployed with `/opt/fleet/lib/deploy-static.sh git-forge-exit-drill dist/site`.
+  Azure deployment ID: `56073ac7-80f3-403b-b621-71820dd953fc`.
+- Cold live root, demo, privacy, and terms checks passed through
+  `/opt/fleet/lib/verify-url.sh`: HTTPS 200, title, `lang=en`, one h1, main,
+  image alt text, no unlabeled buttons, and no console errors. Exact reports:
+  `.factory/evidence/polish-1-*/verify.json`.
+- Live Axe had zero serious or critical violations on `/`, `/demo`, `/privacy`,
+  `/terms`, and `/not-a-route`. The 404 returned HTTP 404 with its designed
+  page and title.
+- Cold live `?demo=1` entered demo, showed the banner, created only the demo
+  namespace, Reset demo recreated it, and Start for real cleared it. A live
+  Back flow focused `#install-title` after the render frame.
+- Live screenshots: `.factory/evidence/polish-1-home/screenshot-desktop.png`
+  and `.factory/evidence/polish-1-demo/screenshot-mobile.png`.
+
+## Run and deploy
+
+```sh
+npm ci
+npm test
+npm run build
+/opt/fleet/lib/deploy-static.sh git-forge-exit-drill dist/site
+```
+
+## Known gaps and next steps
+
+None. The hosted checkout test opens a checkout session but does not submit a
+payment; no card or purchase was made during verification.
