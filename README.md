@@ -108,11 +108,11 @@ git-forge-exit-drill capabilities
 
 ## Team Pack
 
-The free CLI runs one-repository drills. A $39 one-time Team Pack purchase adds
-the `portfolio` command for up to ten export directories and one consolidated
-readiness report in Markdown. Buy Team Pack or enter an existing license on
-the product site. After checkout, copy the shown private license token. Set it
-in the terminal that runs the portfolio command:
+The free CLI runs one-repository drills. Team Pack costs $39 once. It adds
+`portfolio` drills for up to ten exports and one consolidated Markdown
+readiness report. Buy Team Pack or enter an existing license on the product
+site. After checkout, copy the shown private license token. Set it in the
+terminal that runs the portfolio command:
 
 ```sh
 export GFED_LICENSE='paste-license-here'

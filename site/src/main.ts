@@ -88,7 +88,7 @@ function home(): string {
     <section class="boundaries" aria-labelledby="boundaries-title">
       <div class="section-index">Limits</div>
       <div><h2 id="boundaries-title">Know what the CLI writes</h2><p>The CLI writes reports and an evidence archive to the output directory. It does not change your selected export.</p><a class="text-link" href="/privacy" data-link>Read the privacy details <span aria-hidden="true">→</span></a></div>
-      <div class="boundary-list"><p><span>NO</span> Automatic migration</p><p><span>NO</span> Background service</p><p><span>NO</span> Site telemetry</p></div>
+      <div class="boundary-list"><p><span>LOCAL</span> Output stays in your chosen directory</p><p><span>CHECK</span> Review the readiness report before cutover</p><p><span>NO</span> Sample demo telemetry</p></div>
     </section>
 
     <section class="pricing ruled" aria-labelledby="pricing-title">
@@ -136,12 +136,12 @@ function demo(): string {
 
 function privacy(): string {
   return `${header()}<main id="main" class="page-shell legal-page"><p class="eyebrow">Privacy</p><h1 id="page-title" tabindex="-1">Keep repository evidence private</h1>
-    <p class="lede">The CLI works from your computer. This site does not receive repository exports.</p>
+    <p class="lede">Run the CLI on your computer. It writes evidence to your chosen local directory.</p>
     <h2>Data the CLI handles</h2><p>Local mode reads the export directory you choose. It writes reports and an encrypted archive to your chosen output directory.</p>
     <h2>Network requests</h2><p>Local drills make no network requests. API drills contact the GitHub API origin you configure. Portfolio license checks contact the Sociobot billing API.</p>
-    <h2>License storage</h2><p>This site stores a pasted license in your browser under <code>sb_license:${PRODUCT}</code>. It stores the last verdict for one day. You can remove both items with the button below.</p>
+    <h2>License storage</h2><p>This site stores a pasted license and its last verdict in your browser. You can remove both items with the button below.</p>
     <button class="button secondary" type="button" data-clear-license>Remove saved license</button><p class="license-status" role="status" aria-live="polite"></p>
-    <h2>Payments</h2><p>Sociobot and Dodo handle checkout, receipts, refunds, and payment data. This site never receives card details.</p>
+    <h2>Payments</h2><p>The buy link opens a hosted Sociobot checkout. Read its payment terms before you buy.</p>
     <h2>Contact</h2><p>Email <a href="mailto:privacy@sociobot.in">privacy@sociobot.in</a> with a privacy question.</p>
   </main>${footer()}`;
 }
@@ -151,7 +151,7 @@ function terms(): string {
     <p class="lede">These terms cover the CLI, this site, and the Team Pack license.</p>
     <h2>Your responsibility</h2><p>Use only exports, repositories, and tokens you are allowed to access. Review every finding before changing a production Git host.</p>
     <h2>What the report means</h2><p>Capability maps are planning baselines for named target versions. Git-host settings and importers change. A report does not guarantee a complete migration.</p>
-    <h2>Team Pack</h2><p>The Team Pack costs $39 once. It adds portfolio reports for up to ten repositories per run. Sociobot handles payment, receipts, and refunds. Approved refunds revoke the license.</p>
+    <h2>Team Pack</h2><p>The Team Pack costs $39 once. It adds portfolio reports for up to ten repositories per run. The buy link opens hosted checkout terms.</p>
     <h2>No warranty</h2><p>The software is provided under the MIT License without warranty. Keep independent backups before every migration or restore test.</p>
     <h2>Contact</h2><p>Email <a href="mailto:support@sociobot.in">support@sociobot.in</a> for purchase help.</p>
   </main>${footer()}`;

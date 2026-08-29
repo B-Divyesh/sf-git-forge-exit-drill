@@ -622,6 +622,25 @@ test('@claim:target-mappings named target versions have each published support s
   }
 });
 
+test('@claim:forgejo-actions-history Forgejo keeps past Actions runs outside native history', async () => {
+  const mapping = JSON.parse(await readFile(join(process.cwd(), 'mappings', 'targets.json'), 'utf8'));
+  const forgejo = mapping.targets.find((target: { id: string; version: string }) => target.id === 'forgejo' && target.version === '9.0');
+  expect(forgejo.capabilities.actions_runs).toEqual({
+    status: 'unsupported',
+    note: 'Past GitHub Actions run logs do not become Forgejo run history.',
+  });
+
+  const output = await mkdtemp(join(tmpdir(), 'gfed-forgejo-actions-'));
+  await execFile(binary, ['drill', '--source', sample, '--target', 'forgejo:9.0', '--output', output], {
+    env: { ...process.env, GFED_PASSPHRASE: 'browser claim passphrase' },
+  });
+  const report = JSON.parse(await readFile(join(output, 'readiness.json'), 'utf8'));
+  expect(report.findings.find((finding: { artifact: string }) => finding.artifact === 'actions_runs')).toMatchObject({
+    target_support: 'unsupported',
+    next_step: 'Past GitHub Actions run logs do not become Forgejo run history.',
+  });
+});
+
 test('@claim:restore-checklist local reports contain generated restore steps', async () => {
   const root = await mkdtemp(join(tmpdir(), 'gfed-restore-checklist-'));
   await execFile(binary, ['drill', '--source', sample, '--target', 'forgejo:9.0', '--output', root], { env: { ...process.env, GFED_PASSPHRASE: 'browser claim passphrase' } });
@@ -653,7 +672,7 @@ test('@claim:billing-contract Team Pack checkout is active and shows the publish
   await expect(page.getByRole('link', { name: /Buy Team Pack/ })).toHaveAttribute('href', 'https://api.sociobot.in/api/v1/products/git-forge-exit-drill/checkout');
   await page.goto('/terms');
   await expect(page.getByText('The Team Pack costs $39 once.')).toBeVisible();
-  await expect(page.getByText('Sociobot handles payment, receipts, and refunds.')).toBeVisible();
+  await expect(page.getByText('The buy link opens hosted checkout terms.')).toBeVisible();
   const checkout = await fetch('https://api.sociobot.in/api/v1/products/git-forge-exit-drill/checkout', { redirect: 'manual' });
   expect(checkout.status).toBe(303);
   const location = checkout.headers.get('location');

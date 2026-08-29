@@ -18,7 +18,7 @@ use std::{
     name = "git-forge-exit-drill",
     version,
     about = "Test a GitHub move before your team cuts over",
-    long_about = "Test a GitHub move before your team cuts over. Inventory an authorized export or API repository, encrypt the evidence, map target gaps, and write a restore drill. No data is changed on either forge."
+    long_about = "Test a GitHub move before your team cuts over. Inventory an authorized export or API repository, encrypt the evidence, map target gaps, and write a restore drill."
 )]
 struct Cli {
     /// Print the command result as JSON for scripts.
