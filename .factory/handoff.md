@@ -198,3 +198,22 @@ service-worker update, and offline demo reload. The live license endpoint
 enforced 30 requests per active window (request 31: 429, `Retry-After: 3`).
 No release blocker or other product defect was found. See
 `.factory/verification-12.md` for exact evidence, hashes, and test results.
+
+## Independent verification 13 — PASS
+
+On 2026-08-29, independent QA tested requested candidate
+`9340394892cc474cb7b187486e592a2d68423e43` and the deployed artifact at
+`https://git-forge-exit-drill.sociobot.in`. **PASS.** No product code was
+changed. All 21 declared claim tests passed from a clean install, followed by
+the full local test/build, formatting, strict Clippy, dependency audit, a
+fresh Cargo consumer install, normal CLI drill/archive verification, and
+invalid-input recovery.
+
+The live JavaScript, CSS, and Linux binary byte-match the candidate build.
+Fresh live checks passed first-read/demo, desktop and 390 px mobile,
+keyboard-visible focus, reduced motion, Axe serious/critical scan, privacy
+request log, CSP/headers/caching, service-worker update, and offline `/demo`
+reload. The sole product-unlock endpoint allowed 30 invalid-license requests;
+request 31 returned 429 with `Retry-After: 3`. No defects were found. See
+`.factory/verification-13.md` for exact commands, findings, hashes, and
+applicability details.
