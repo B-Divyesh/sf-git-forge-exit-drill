@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 import { execFile as execFileCallback } from 'node:child_process';
 import { createServer } from 'node:http';
 import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
@@ -388,6 +389,7 @@ test('desktop and 390px mobile render without page overflow or console errors', 
   await page.goto('/demo');
   await expect(page.locator('h1')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  expect(await page.locator('.terminal pre').evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   expect(errors).toEqual([]);
 });
 
@@ -460,9 +462,11 @@ test('@claim:cli-demo-isolated CLI demo prints isolated output paths and preserv
   const root = await mkdtemp(join(tmpdir(), 'gfed-demo-isolated-'));
   const output = join(root, 'demo');
   const { stdout } = await execFile(binary, ['demo', '--output', output]);
-  expect(stdout).toContain('Report:');
-  expect(stdout).toContain('Encrypted evidence:');
-  await expect(readFile(join(output, 'result', 'readiness.md'), 'utf8')).resolves.toContain('## Restore drill');
+  const report = stdout.match(/^Report:\s+(.+)$/m)?.[1];
+  const archive = stdout.match(/^Encrypted evidence:\s+(.+)$/m)?.[1];
+  expect(report).toBe(join(output, 'result', 'readiness.md'));
+  expect(archive).toBe(join(output, 'result', 'evidence.gfed'));
+  await expect(readFile(report!, 'utf8')).resolves.toContain('## Restore drill');
   const occupied = join(root, 'occupied');
   await mkdir(occupied);
   await writeFile(join(occupied, 'sentinel.txt'), 'keep this');
@@ -504,13 +508,23 @@ test('@claim:linux-download production site output ships an executable versioned
   expect(stdout).toContain('git-forge-exit-drill 0.1.0');
 });
 
-test('@claim:billing-contract Team Pack copy and checkout link state the published one-time purchase', async ({ page }) => {
+test('@claim:billing-contract Team Pack checkout is active and shows the published one-time $39 offer', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByText('A $39 one-time purchase adds the portfolio command and one consolidated readiness report.')).toBeVisible();
   await expect(page.getByRole('link', { name: /Buy Team Pack/ })).toHaveAttribute('href', 'https://api.sociobot.in/api/v1/products/git-forge-exit-drill/checkout');
   await page.goto('/terms');
   await expect(page.getByText('The Team Pack costs $39 once.')).toBeVisible();
   await expect(page.getByText('Sociobot handles payment, receipts, and refunds.')).toBeVisible();
+  const checkout = await fetch('https://api.sociobot.in/api/v1/products/git-forge-exit-drill/checkout', { redirect: 'manual' });
+  expect(checkout.status).toBe(303);
+  const location = checkout.headers.get('location');
+  expect(location).toMatch(/^https:\/\/checkout\.dodopayments\.com\/session\//);
+  const receipt = await fetch(location!);
+  const checkoutHtml = await receipt.text();
+  expect(receipt.ok).toBe(true);
+  expect(checkoutHtml).toContain('Git Forge Exit Drill');
+  expect(checkoutHtml).toContain('$39.00');
+  expect(checkoutHtml).toContain('One-time unlock');
 });
 
 test('@claim:archive-file-completeness archive lists every regular nested source file with its digest', async () => {
@@ -521,8 +535,12 @@ test('@claim:archive-file-completeness archive lists every regular nested source
   await execFile(binary, ['drill', '--source', source, '--target', 'forgejo:9.0', '--output', output], { env: { ...process.env, GFED_PASSPHRASE: 'browser claim passphrase' } });
   const { stdout } = await execFile(binary, ['--json', 'verify', join(output, 'evidence.gfed')], { env: { ...process.env, GFED_PASSPHRASE: 'browser claim passphrase' } });
   const verified = JSON.parse(stdout) as { evidence_files: Array<{ path: string; sha256: string }> };
-  expect(verified.evidence_files.map((file) => file.path)).toEqual(['empty.txt', 'issues.json', 'nested/binary.bin']);
-  expect(verified.evidence_files.every((file) => /^[a-f0-9]{64}$/.test(file.sha256))).toBe(true);
+  const sourceFiles = ['empty.txt', 'issues.json', 'nested/binary.bin'];
+  const expected = await Promise.all(sourceFiles.map(async (path) => ({
+    path,
+    sha256: createHash('sha256').update(await readFile(join(source, path))).digest('hex'),
+  })));
+  expect(verified.evidence_files).toEqual(expected);
 });
 
 test('@claim:api-metadata-blocks-git API metadata reports Git history as missing and blocks readiness', async () => {
@@ -544,6 +562,14 @@ test('@claim:json-summary successful --json output is parseable and contains com
   const { stdout } = await execFile(binary, ['--json', 'drill', '--source', sample, '--target', 'forgejo:9.0', '--output', output], { env: { ...process.env, GFED_PASSPHRASE: 'browser claim passphrase' } });
   const result = JSON.parse(stdout);
   expect(result.repository).toBe('acme-labs/atlas-notes'); expect(result.markdown_report).toContain('readiness.md'); expect(result.evidence_archive).toContain('evidence.gfed');
+  try {
+    await execFile(binary, ['--json', 'drill', '--source', join(output, 'missing'), '--target', 'forgejo:9.0'], { env: { ...process.env, GFED_PASSPHRASE: 'browser claim passphrase' } });
+    throw new Error('missing source unexpectedly succeeded');
+  } catch (error) {
+    const failure = error as { code?: number; stdout?: string };
+    expect(failure.code).toBe(1);
+    expect(JSON.parse(failure.stdout ?? '')).toMatchObject({ ok: false, error: expect.stringContaining('check --source and try again') });
+  }
 });
 
 test('@claim:actionable-errors documented setup errors exit non-zero with one next step', async () => {
@@ -552,9 +578,23 @@ test('@claim:actionable-errors documented setup errors exit non-zero with one ne
   await expect(execFile(binary, ['drill', '--source', sample, '--target', 'forgejo:9.0'], { env: { ...process.env, GFED_PASSPHRASE: 'short' } })).rejects.toMatchObject({ code: 1, stderr: expect.stringContaining('set a longer value and try again') });
 });
 
-test('@claim:cli-network-boundaries local work avoids the network while the license fixture receives only its configured call', async () => {
+test('@claim:cli-network-boundaries local work avoids the network while API and license checks use only configured origins', async () => {
   const localOutput = await mkdtemp(join(tmpdir(), 'gfed-network-local-'));
   await execFile(binary, ['drill', '--source', sample, '--target', 'forgejo:9.0', '--output', localOutput], { env: { ...process.env, GFED_PASSPHRASE: 'browser claim passphrase', HTTP_PROXY: 'http://127.0.0.1:1', HTTPS_PROXY: 'http://127.0.0.1:1', NO_PROXY: '' } });
+  const apiCalls: string[] = [];
+  const api = createServer((request, response) => {
+    apiCalls.push(request.url ?? ''); response.setHeader('content-type', 'application/json');
+    if (request.url === '/repos/acme/network') response.end(JSON.stringify({ full_name: 'acme/network' }));
+    else if (request.url?.includes('/actions/workflows')) response.end(JSON.stringify({ workflows: [] }));
+    else if (request.url?.includes('/actions/runs')) response.end(JSON.stringify({ workflow_runs: [] }));
+    else response.end('[]');
+  });
+  await new Promise<void>((resolve) => api.listen(0, '127.0.0.1', resolve));
+  const apiAddress = api.address(); if (!apiAddress || typeof apiAddress === 'string') throw new Error('API fixture did not start');
+  const apiOutput = await mkdtemp(join(tmpdir(), 'gfed-network-api-'));
+  try { await execFile(binary, ['drill', '--repo', 'acme/network', '--target', 'forgejo:9.0', '--output', apiOutput], { env: { ...process.env, GITHUB_TOKEN: 'network-fixture', GFED_PASSPHRASE: 'browser claim passphrase', GFED_GITHUB_API_BASE: `http://127.0.0.1:${apiAddress.port}` } }); } finally { api.close(); }
+  expect(apiCalls).toContain('/repos/acme/network');
+  expect(apiCalls.every((call) => call.startsWith('/repos/acme/network'))).toBe(true);
   const calls: string[] = []; const billing = createServer((request, response) => { calls.push(request.url ?? ''); response.setHeader('content-type', 'application/json'); response.end(JSON.stringify({ valid: true, reason: 'ok' })); });
   await new Promise<void>((resolve) => billing.listen(0, '127.0.0.1', resolve)); const address = billing.address(); if (!address || typeof address === 'string') throw new Error('billing fixture did not start');
   const root = await mkdtemp(join(tmpdir(), 'gfed-network-license-'));
@@ -563,9 +603,9 @@ test('@claim:cli-network-boundaries local work avoids the network while the lice
 });
 
 test('built deep-link documents have route-specific source metadata', async () => {
-  for (const [path, title, canonical] of [['demo', 'Demo — Git Forge Exit Drill', 'https://git-forge-exit-drill.sociobot.in/demo'], ['privacy', 'Privacy — Git Forge Exit Drill', 'https://git-forge-exit-drill.sociobot.in/privacy'], ['terms', 'Terms — Git Forge Exit Drill', 'https://git-forge-exit-drill.sociobot.in/terms']]) {
+  for (const [path, title, description, canonical] of [['demo', 'Demo — Git Forge Exit Drill', 'See a complete GitHub move check with bundled sample data.', 'https://git-forge-exit-drill.sociobot.in/demo'], ['privacy', 'Privacy — Git Forge Exit Drill', 'Learn what the local CLI reads, stores, and sends.', 'https://git-forge-exit-drill.sociobot.in/privacy'], ['terms', 'Terms — Git Forge Exit Drill', 'Read the terms for Git Forge Exit Drill and Team Pack.', 'https://git-forge-exit-drill.sociobot.in/terms']]) {
     const html = await readFile(join(process.cwd(), 'dist', 'site', path, 'index.html'), 'utf8');
-    expect(html).toContain(`<title>${title}</title>`); expect(html).toContain(`canonical" href="${canonical}"`); expect(html).toContain(`og:url" content="${canonical}"`);
+    expect(html).toContain(`<title>${title}</title>`); expect(html).toContain(`description" content="${description}"`); expect(html).toContain(`canonical" href="${canonical}"`); expect(html).toContain(`og:title" content="${title}"`); expect(html).toContain(`og:description" content="${description}"`); expect(html).toContain(`og:url" content="${canonical}"`); expect(html).toContain(`twitter:title" content="${title}"`); expect(html).toContain(`twitter:description" content="${description}"`);
   }
 });
 

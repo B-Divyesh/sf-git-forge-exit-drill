@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "audit:copy": "node scripts/check-copy-audit.mjs",
     "test:rust": "cargo test",
-    "test": "npm run test:rust && npm run build:site && playwright test"
+    "test": "npm run typecheck && npm run test:rust && cargo build --release && npm run build:site && playwright test"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.10.2",

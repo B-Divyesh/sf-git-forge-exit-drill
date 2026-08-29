@@ -13,7 +13,7 @@ Run `npm run audit:copy` after changing copy. It fails until this audit is
 updated for the exact reviewed sources.
 
 - `site/src/main.ts: d241ae84e836c7f0e8153e6fe9f5c826e50871245a980a917c3e550217c15759`
-- `README.md: 129a01b9386310bef81086b52f2b1fc30daf3e10414be107ac66a67f5f37fe74`
+- `README.md: 8915abba49b5de0adc71efacd3f9d7e10ccbed91ab1d9aebbe476c980cb74014`
 
 ## Landing and route strings
 

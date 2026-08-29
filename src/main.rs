@@ -85,10 +85,22 @@ enum Command {
 }
 
 fn main() -> ExitCode {
-    match execute(Cli::parse()) {
+    let cli = Cli::parse();
+    let json = cli.json;
+    match execute(cli) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
-            eprintln!("error: {error:#}");
+            if json {
+                println!(
+                    "{}",
+                    serde_json::json!({
+                        "error": format!("{error:#}"),
+                        "ok": false,
+                    })
+                );
+            } else {
+                eprintln!("error: {error:#}");
+            }
             ExitCode::FAILURE
         }
     }

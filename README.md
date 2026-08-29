@@ -80,8 +80,8 @@ git-forge-exit-drill drill \
   --output ./exit-drill
 ```
 
-Use `--json` before the subcommand for a JSON summary. Documented errors exit
-non-zero and give one next step.
+Use `--json` before the subcommand for a JSON summary or error. Documented
+errors exit non-zero and give one next step.
 
 ## Verify an archive
 
