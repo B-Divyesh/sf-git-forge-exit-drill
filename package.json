@@ -8,12 +8,15 @@
     "build:site": "vite build --config site/vite.config.ts && node scripts/finish-site.mjs",
     "build": "cargo build --release && npm run build:site && node scripts/copy-binary.mjs",
     "preview": "vite preview --config site/vite.config.ts --host 127.0.0.1",
+    "typecheck": "tsc --noEmit",
     "test:rust": "cargo test",
     "test": "npm run test:rust && npm run build:site && playwright test"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.10.2",
     "@playwright/test": "1.58.2",
+    "@types/node": "22.20.1",
+    "playwright-core": "1.58.2",
     "typescript": "5.9.2",
     "vite": "7.3.6"
   }

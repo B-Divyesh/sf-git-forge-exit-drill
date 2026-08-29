@@ -11,6 +11,10 @@ const execFile = promisify(execFileCallback);
 const binary = join(process.cwd(), 'target/debug/git-forge-exit-drill');
 const sample = join(process.cwd(), 'examples/atlas-notes-export');
 
+async function createValidMirror(source: string) {
+  await execFile('git', ['clone', '--mirror', '--quiet', process.cwd(), join(source, 'mirror.git')]);
+}
+
 test('@claim:demo-private sample demo is immediate and same-origin only', async ({ page }) => {
   const origins = new Set<string>();
   page.on('request', (request) => origins.add(new URL(request.url()).origin));
@@ -82,6 +86,49 @@ test('@claim:evidence-complete captured counts require valid exported records', 
       result: 'incomplete evidence',
     });
   }
+
+  const structurallyInvalid = join(root, 'structurally-invalid');
+  await mkdir(structurallyInvalid);
+  await writeFile(join(structurallyInvalid, 'manifest.json'), JSON.stringify({
+    artifacts: { issues: 1, pull_requests: 1, releases: 1, actions_workflows: 1, actions_runs: 1 },
+  }));
+  for (const name of ['issues.json', 'pull_requests.json', 'releases.json', 'workflows.json', 'workflow_runs.json']) {
+    await writeFile(join(structurallyInvalid, name), '[null]');
+  }
+  await createValidMirror(structurallyInvalid);
+  const structurallyInvalidOutput = join(root, 'structurally-invalid-output');
+  await execFile(binary, ['drill', '--source', structurallyInvalid, '--target', 'forgejo:9.0', '--output', structurallyInvalidOutput], { env: environment });
+  const structurallyInvalidReport = JSON.parse(await readFile(join(structurallyInvalidOutput, 'readiness.json'), 'utf8'));
+  for (const artifact of ['issues', 'pull_requests', 'releases', 'actions_workflows', 'actions_runs']) {
+    expect(structurallyInvalidReport.findings.find((finding: { artifact: string }) => finding.artifact === artifact)).toMatchObject({
+      captured: false,
+      count: null,
+      result: 'incomplete evidence',
+    });
+    expect(structurallyInvalidReport.incomplete[artifact]).toContain('record 1 must be a JSON object');
+  }
+
+  const mixedRecords = join(root, 'mixed-records');
+  await mkdir(mixedRecords);
+  await writeFile(join(mixedRecords, 'manifest.json'), JSON.stringify({ artifacts: { issues: 1 } }));
+  await writeFile(join(mixedRecords, 'issues.json'), JSON.stringify([
+    { number: 81, title: 'Valid issue', author: 'mira' },
+    null,
+    7,
+    { id: 5 },
+    { title: 'Missing identity', author: 'mira' },
+    { number: 82, title: 'Missing author' },
+  ]));
+  await createValidMirror(mixedRecords);
+  const mixedOutput = join(root, 'mixed-output');
+  await execFile(binary, ['drill', '--source', mixedRecords, '--target', 'forgejo:9.0', '--output', mixedOutput], { env: environment });
+  const mixedReport = JSON.parse(await readFile(join(mixedOutput, 'readiness.json'), 'utf8'));
+  expect(mixedReport.findings.find((finding: { artifact: string }) => finding.artifact === 'issues')).toMatchObject({
+    captured: false,
+    count: 1,
+    result: 'incomplete evidence',
+  });
+  expect(mixedReport.incomplete.issues).toContain('record 2 must be a JSON object');
 
   const sampleOutput = join(root, 'sample-output');
   await execFile(binary, ['drill', '--source', sample, '--target', 'forgejo:9.0', '--output', sampleOutput], { env: environment });
@@ -267,10 +314,12 @@ test('390px interactive controls meet the 44px touch-target baseline', async ({ 
   }
 });
 
-test('the demo reloads offline after its first visit', async ({ page, context }) => {
+test('the demo accepts a service-worker update check and reloads offline after its first visit', async ({ page, context }) => {
   await page.goto('/demo');
   await page.evaluate(async () => {
-    await navigator.serviceWorker.ready;
+    const registration = await navigator.serviceWorker.ready;
+    await registration.update();
+    if (!registration.active) throw new Error('service worker is not active after update check');
   });
   await page.reload();
   await context.setOffline(true);

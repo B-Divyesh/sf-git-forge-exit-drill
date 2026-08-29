@@ -1,7 +1,32 @@
 use assert_cmd::Command;
 use predicates::prelude::*;
-use std::fs;
+use std::{fs, io::Write, path::Path};
 use tempfile::tempdir;
+
+fn create_valid_mirror(source: &Path) {
+    let mirror = source.join("mirror.git");
+    assert!(
+        std::process::Command::new("git")
+            .args(["init", "--bare", "--quiet"])
+            .arg(&mirror)
+            .status()
+            .unwrap()
+            .success()
+    );
+    let mut import = std::process::Command::new("git")
+        .arg(format!("--git-dir={}", mirror.display()))
+        .args(["fast-import", "--quiet"])
+        .stdin(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    import
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(b"blob\nmark :1\ndata 5\nhello\ncommit refs/heads/main\nauthor Test <test@example.invalid> 0 +0000\ncommitter Test <test@example.invalid> 0 +0000\ndata 5\nseed\nM 100644 :1 README.md\n\ndone\n")
+        .unwrap();
+    assert!(import.wait().unwrap().success());
+}
 
 #[test]
 fn demo_runs_end_to_end() {
@@ -126,6 +151,188 @@ fn malformed_recognized_json_is_incomplete_not_captured() {
         .args(["verify", output.join("evidence.gfed").to_str().unwrap()])
         .assert()
         .success();
+}
+
+#[test]
+fn null_critical_records_are_incomplete_not_captured() {
+    let directory = tempdir().unwrap();
+    let source = directory.path().join("null-record-export");
+    let output = directory.path().join("result");
+    fs::create_dir(&source).unwrap();
+    fs::write(
+        source.join("manifest.json"),
+        r#"{"repository":"acme/null-records","artifacts":{"issues":1,"pull_requests":1,"releases":1,"actions_workflows":1,"actions_runs":1}}"#,
+    )
+    .unwrap();
+    for name in [
+        "issues.json",
+        "pull_requests.json",
+        "releases.json",
+        "workflows.json",
+        "workflow_runs.json",
+    ] {
+        fs::write(source.join(name), "[null]").unwrap();
+    }
+    create_valid_mirror(&source);
+
+    Command::cargo_bin("git-forge-exit-drill")
+        .unwrap()
+        .env("GFED_PASSPHRASE", "correct horse battery")
+        .args([
+            "drill",
+            "--source",
+            source.to_str().unwrap(),
+            "--target",
+            "forgejo:9.0",
+            "--output",
+            output.to_str().unwrap(),
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Outcome: BLOCKED"));
+
+    let report: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(output.join("readiness.json")).unwrap()).unwrap();
+    for artifact in [
+        "issues",
+        "pull_requests",
+        "releases",
+        "actions_workflows",
+        "actions_runs",
+    ] {
+        let finding = report["findings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|finding| finding["artifact"] == artifact)
+            .unwrap();
+        assert_eq!(finding["captured"], false, "{artifact}");
+        assert_eq!(finding["count"], serde_json::Value::Null, "{artifact}");
+        assert_eq!(finding["result"], "incomplete evidence", "{artifact}");
+        assert!(
+            report["incomplete"][artifact]
+                .as_str()
+                .unwrap()
+                .contains("record 1 must be a JSON object"),
+            "{artifact} should identify the invalid record"
+        );
+    }
+    assert_eq!(report["outcome"], "blocked");
+    Command::cargo_bin("git-forge-exit-drill")
+        .unwrap()
+        .env("GFED_PASSPHRASE", "correct horse battery")
+        .args(["verify", output.join("evidence.gfed").to_str().unwrap()])
+        .assert()
+        .success();
+}
+
+#[test]
+fn invalid_and_mixed_issue_records_count_only_valid_records() {
+    let directory = tempdir().unwrap();
+    let source = directory.path().join("invalid-issue-records");
+    fs::create_dir(&source).unwrap();
+    fs::write(
+        source.join("manifest.json"),
+        r#"{"repository":"acme/invalid-issues","artifacts":{"issues":1}}"#,
+    )
+    .unwrap();
+    create_valid_mirror(&source);
+
+    for (name, content, expected_reason) in [
+        ("null", "[null]", "must be a JSON object"),
+        ("scalar", "[9]", "must be a JSON object"),
+        ("unrelated", r#"[{"id":9}]"#, "must include a title"),
+        (
+            "missing-identity",
+            r#"[{"title":"No identity","author":"mira"}]"#,
+            "must include an id or number",
+        ),
+        (
+            "missing-author",
+            r#"[{"number":9,"title":"No author"}]"#,
+            "must include an issue or pull request author",
+        ),
+    ] {
+        fs::write(source.join("issues.json"), content).unwrap();
+        let output = directory.path().join(name);
+        Command::cargo_bin("git-forge-exit-drill")
+            .unwrap()
+            .env("GFED_PASSPHRASE", "correct horse battery")
+            .args([
+                "drill",
+                "--source",
+                source.to_str().unwrap(),
+                "--target",
+                "forgejo:9.0",
+                "--output",
+                output.to_str().unwrap(),
+            ])
+            .assert()
+            .success();
+        let report: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output.join("readiness.json")).unwrap())
+                .unwrap();
+        let issues = report["findings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|finding| finding["artifact"] == "issues")
+            .unwrap();
+        assert_eq!(issues["captured"], false, "{name}");
+        assert_eq!(issues["count"], serde_json::Value::Null, "{name}");
+        assert_eq!(issues["result"], "incomplete evidence", "{name}");
+        assert!(
+            report["incomplete"]["issues"]
+                .as_str()
+                .unwrap()
+                .contains(expected_reason),
+            "{name} should explain its invalid record"
+        );
+    }
+
+    fs::write(
+        source.join("issues.json"),
+        r#"[
+          {"number": 81, "title": "Valid evidence", "author": "mira"},
+          null,
+          4,
+          {"number": 82, "title": "Missing author"}
+        ]"#,
+    )
+    .unwrap();
+    let output = directory.path().join("mixed");
+    Command::cargo_bin("git-forge-exit-drill")
+        .unwrap()
+        .env("GFED_PASSPHRASE", "correct horse battery")
+        .args([
+            "drill",
+            "--source",
+            source.to_str().unwrap(),
+            "--target",
+            "forgejo:9.0",
+            "--output",
+            output.to_str().unwrap(),
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Outcome: BLOCKED"));
+    let report: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(output.join("readiness.json")).unwrap()).unwrap();
+    let issues = report["findings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|finding| finding["artifact"] == "issues")
+        .unwrap();
+    assert_eq!(issues["captured"], false);
+    assert_eq!(issues["count"], 1);
+    assert_eq!(issues["result"], "incomplete evidence");
+    assert!(
+        report["incomplete"]["issues"]
+            .as_str()
+            .unwrap()
+            .contains("record 2 must be a JSON object")
+    );
 }
 
 #[test]

@@ -4,7 +4,7 @@ use argon2::Argon2;
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use rand::{RngCore, rngs::OsRng};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -232,9 +232,17 @@ pub fn inventory_local(root: &Path) -> Result<(Inventory, Vec<EvidenceFile>)> {
             .replace('\\', "/");
         if let Some(kind) = artifact_kind(&relative) {
             match parsed_artifact_counts(kind, &bytes) {
-                Ok(counts) => {
-                    for (artifact, count) in counts {
+                Ok(parsed) => {
+                    for (artifact, count) in parsed.counts {
                         *artifacts.entry(artifact).or_insert(0) += count;
+                    }
+                    for (artifact, reason) in parsed.incomplete {
+                        incomplete.entry(artifact.clone()).or_insert_with(|| {
+                            format!(
+                                "{relative} contains invalid {} evidence: {reason}",
+                                label(&artifact)
+                            )
+                        });
                     }
                 }
                 Err(reason) => {
@@ -356,15 +364,65 @@ fn artifact_kind(path: &str) -> Option<&'static str> {
 
 /// Parse only records that are actually present in a recognized export file.
 /// A `total_count` is useful metadata, but it is never a substitute for the
-/// records that a restore drill needs to preserve.
+/// records that a restore drill needs to preserve. A record is evidence only
+/// after its artifact-specific identity and restoration fields validate.
+#[derive(Debug, Default)]
+struct ParsedArtifactCounts {
+    counts: BTreeMap<String, u64>,
+    incomplete: BTreeMap<String, String>,
+}
+
 fn parsed_artifact_counts(
     kind: &str,
     bytes: &[u8],
-) -> std::result::Result<BTreeMap<String, u64>, String> {
+) -> std::result::Result<ParsedArtifactCounts, String> {
     let value: Value = serde_json::from_slice(bytes).map_err(|error| error.to_string())?;
-    let mut counts = BTreeMap::new();
-    let record_count = match value {
-        Value::Array(items) => items.len() as u64,
+    let records = artifact_records(kind, value)?;
+
+    let mut parsed = ParsedArtifactCounts::default();
+    let mut valid_records = 0_u64;
+    let mut release_assets = 0_u64;
+    for (index, record) in records.iter().enumerate() {
+        match validate_artifact_record(kind, record) {
+            Ok(asset_count) => {
+                valid_records += 1;
+                release_assets += asset_count;
+            }
+            Err(reason) => {
+                let message = format!("record {} {reason}", index + 1);
+                parsed
+                    .incomplete
+                    .entry(kind.to_owned())
+                    .or_insert_with(|| message.clone());
+                if kind == "releases" {
+                    parsed
+                        .incomplete
+                        .entry("release_assets".to_owned())
+                        .or_insert(message);
+                }
+            }
+        }
+    }
+
+    // An explicit empty collection is valid evidence of zero records. A
+    // wholly invalid collection gets no count at all; a mixed one exposes the
+    // number of individually valid records while remaining incomplete.
+    if !parsed.incomplete.contains_key(kind) || valid_records > 0 {
+        parsed.counts.insert(kind.to_owned(), valid_records);
+    }
+    if kind == "releases"
+        && (!parsed.incomplete.contains_key("release_assets") || release_assets > 0)
+    {
+        parsed
+            .counts
+            .insert("release_assets".to_owned(), release_assets);
+    }
+    Ok(parsed)
+}
+
+fn artifact_records(kind: &str, value: Value) -> std::result::Result<Vec<Value>, String> {
+    let records = match value {
+        Value::Array(items) => items,
         Value::Object(map) => {
             let collection_keys: &[&str] = match kind {
                 "actions_workflows" => &["workflows", "items"],
@@ -378,41 +436,180 @@ fn parsed_artifact_counts(
                 .iter()
                 .find_map(|key| map.get(*key).and_then(Value::as_array))
             {
-                records.len() as u64
+                records.clone()
             } else if map.contains_key("id")
                 || map.contains_key("number")
                 || map.contains_key("tag_name")
             {
-                1
+                vec![Value::Object(map)]
             } else if map.get("total_count").is_some_and(Value::is_u64) {
-                0
+                Vec::new()
             } else {
                 return Err("it does not contain an array of export records".to_owned());
             }
         }
         _ => return Err("it must contain an array or object of export records".to_owned()),
     };
-    counts.insert(kind.to_owned(), record_count);
+    Ok(records)
+}
 
-    if kind == "releases" {
-        let assets = match serde_json::from_slice::<Value>(bytes) {
-            Ok(Value::Array(releases)) => releases,
-            Ok(Value::Object(map)) => map
-                .get("releases")
-                .or_else(|| map.get("items"))
-                .and_then(Value::as_array)
-                .cloned()
-                .unwrap_or_default(),
-            _ => Vec::new(),
-        };
-        let asset_count = assets
-            .iter()
-            .filter_map(|release| release.get("assets").and_then(Value::as_array))
-            .map(Vec::len)
-            .sum::<usize>() as u64;
-        counts.insert("release_assets".to_owned(), asset_count);
+fn validate_artifact_record(kind: &str, record: &Value) -> std::result::Result<u64, String> {
+    if kind == "release_assets" {
+        return validate_release_asset(record).map(|_| 0);
     }
-    Ok(counts)
+
+    let map = record
+        .as_object()
+        .ok_or_else(|| "must be a JSON object".to_owned())?;
+    match kind {
+        "issues" | "pull_requests" => {
+            require_identifier(map, &["id", "number"])?;
+            require_text(map, &["title"], "a title")?;
+            require_author(map)?;
+        }
+        "releases" => {
+            require_text(map, &["tag_name"], "a release tag")?;
+            let assets = map
+                .get("assets")
+                .and_then(Value::as_array)
+                .ok_or_else(|| "must include an assets array".to_owned())?;
+            for asset in assets {
+                validate_release_asset(asset)?;
+            }
+            return Ok(assets.len() as u64);
+        }
+        "actions_workflows" => {
+            require_identifier(map, &["id"])?;
+            require_text(map, &["name"], "a workflow name")?;
+            require_text(map, &["path"], "a workflow path")?;
+        }
+        "actions_runs" => {
+            require_identifier(map, &["id"])?;
+            require_text(map, &["name"], "a run name")?;
+            require_text(map, &["head_sha"], "a commit SHA")?;
+        }
+        "branch_protection" => {
+            let has_identity = has_identifier(map, &["id", "name", "pattern"]);
+            let has_policy = [
+                "required_status_checks",
+                "required_pull_request_reviews",
+                "enforce_admins",
+                "restrictions",
+                "rules",
+            ]
+            .iter()
+            .any(|field| map.contains_key(*field));
+            if !has_identity && !has_policy {
+                return Err("must include a rule identity or a branch protection policy".to_owned());
+            }
+        }
+        "webhooks" => {
+            require_identifier(map, &["id"])?;
+            if !map.get("events").is_some_and(Value::is_array) {
+                return Err("must include an events array".to_owned());
+            }
+            if !map.get("config").is_some_and(Value::is_object) {
+                return Err("must include a webhook config object".to_owned());
+            }
+        }
+        "secrets" => {
+            require_text(map, &["name"], "a secret name")?;
+        }
+        "packages" => {
+            require_identifier(map, &["id"])?;
+            require_text(map, &["name"], "a package name")?;
+            require_text(map, &["package_type", "type"], "a package type")?;
+        }
+        "discussions" => {
+            require_identifier(map, &["id", "number"])?;
+            require_text(map, &["title"], "a discussion title")?;
+            require_author(map)?;
+        }
+        "git_lfs" => {
+            require_text(map, &["oid"], "an LFS object ID")?;
+            if !map.get("size").is_some_and(Value::is_u64) {
+                return Err("must include an LFS object size".to_owned());
+            }
+        }
+        _ => {
+            require_identifier(map, &["id", "name"])?;
+        }
+    }
+    Ok(0)
+}
+
+fn validate_release_asset(asset: &Value) -> std::result::Result<(), String> {
+    if asset.as_str().is_some_and(|name| !name.trim().is_empty()) {
+        return Ok(());
+    }
+    let map = asset
+        .as_object()
+        .ok_or_else(|| "must be a named release asset object or name string".to_owned())?;
+    require_text(map, &["name"], "a release asset name")?;
+    require_identifier(map, &["id", "browser_download_url"])
+}
+
+fn require_identifier(
+    map: &Map<String, Value>,
+    fields: &[&str],
+) -> std::result::Result<(), String> {
+    if has_identifier(map, fields) {
+        Ok(())
+    } else {
+        Err(format!("must include {}", joined_fields(fields)))
+    }
+}
+
+fn has_identifier(map: &Map<String, Value>, fields: &[&str]) -> bool {
+    fields.iter().any(|field| {
+        map.get(*field).is_some_and(|value| {
+            value.is_number() || value.as_str().is_some_and(|text| !text.trim().is_empty())
+        })
+    })
+}
+
+fn require_text(
+    map: &Map<String, Value>,
+    fields: &[&str],
+    description: &str,
+) -> std::result::Result<(), String> {
+    if fields.iter().any(|field| {
+        map.get(*field)
+            .and_then(Value::as_str)
+            .is_some_and(|text| !text.trim().is_empty())
+    }) {
+        Ok(())
+    } else {
+        Err(format!("must include {description}"))
+    }
+}
+
+fn require_author(map: &Map<String, Value>) -> std::result::Result<(), String> {
+    let has_author = ["author", "user", "creator"].iter().any(|field| {
+        map.get(*field).is_some_and(|value| match value {
+            Value::String(text) => !text.trim().is_empty(),
+            Value::Object(person) => ["login", "username", "name", "id"]
+                .iter()
+                .any(|key| has_identifier(person, &[*key])),
+            _ => false,
+        })
+    });
+    if has_author {
+        Ok(())
+    } else {
+        Err("must include an issue or pull request author".to_owned())
+    }
+}
+
+fn joined_fields(fields: &[&str]) -> String {
+    match fields {
+        [] => "an identifier".to_owned(),
+        ["id", "number"] => "an id or number".to_owned(),
+        ["id", "browser_download_url"] => "an id or browser download URL".to_owned(),
+        [field] => format!("a {field}"),
+        [first, second] => format!("a {first} or {second}"),
+        _ => fields.join(" or "),
+    }
 }
 
 /// Prove that an export contains an object database Git itself can read. A
@@ -599,22 +796,20 @@ pub fn create_demo_git_mirror(directory: &Path) -> Result<()> {
     Ok(())
 }
 
-fn json_count(bytes: &[u8]) -> u64 {
-    let Ok(value) = serde_json::from_slice::<Value>(bytes) else {
-        return 1;
-    };
-    match value {
-        Value::Array(items) => items.len() as u64,
-        Value::Object(map) => map
-            .get("total_count")
-            .and_then(Value::as_u64)
-            .or_else(|| {
-                map.values()
-                    .find_map(|value| value.as_array().map(|items| items.len() as u64))
+fn valid_non_pull_request_issue_count(bytes: &[u8]) -> Option<u64> {
+    let value = serde_json::from_slice::<Value>(bytes).ok()?;
+    let records = artifact_records("issues", value).ok()?;
+    Some(
+        records
+            .iter()
+            .filter(|record| {
+                validate_artifact_record("issues", record).is_ok()
+                    && record
+                        .as_object()
+                        .is_none_or(|map| !map.contains_key("pull_request"))
             })
-            .unwrap_or(1),
-        _ => 1,
-    }
+            .count() as u64,
+    )
 }
 
 pub fn inventory_github(repository: &str, token: &str) -> Result<(Inventory, Vec<EvidenceFile>)> {
@@ -627,6 +822,7 @@ pub fn inventory_github(repository: &str, token: &str) -> Result<(Inventory, Vec
     let api_base =
         env::var("GFED_GITHUB_API_BASE").unwrap_or_else(|_| "https://api.github.com".to_owned());
     let mut artifacts = BTreeMap::new();
+    let mut incomplete = BTreeMap::new();
     let mut unavailable = BTreeMap::new();
     let mut evidence = Vec::new();
 
@@ -672,26 +868,36 @@ pub fn inventory_github(repository: &str, token: &str) -> Result<(Inventory, Vec
     for (kind, path) in endpoints {
         match api_get_paginated(&api_base, &path, token) {
             Ok(bytes) => {
-                let mut count = json_count(&bytes);
-                if kind == "issues"
-                    && let Ok(Value::Array(items)) = serde_json::from_slice::<Value>(&bytes)
-                {
-                    count = items
-                        .iter()
-                        .filter(|item| item.get("pull_request").is_none())
-                        .count() as u64;
+                match parsed_artifact_counts(kind, &bytes) {
+                    Ok(parsed) => {
+                        let has_valid_issue_count = parsed.counts.contains_key("issues");
+                        for (artifact, count) in parsed.counts {
+                            artifacts.insert(artifact, count);
+                        }
+                        for (artifact, reason) in parsed.incomplete {
+                            incomplete.entry(artifact.clone()).or_insert_with(|| {
+                                format!(
+                                    "GitHub API response contains invalid {} evidence: {reason}",
+                                    label(&artifact)
+                                )
+                            });
+                        }
+                        if kind == "issues"
+                            && has_valid_issue_count
+                            && let Some(count) = valid_non_pull_request_issue_count(&bytes)
+                        {
+                            artifacts.insert("issues".to_owned(), count);
+                        }
+                    }
+                    Err(reason) => {
+                        incomplete.entry(kind.to_owned()).or_insert_with(|| {
+                            format!(
+                                "GitHub API response is not valid {} evidence: {reason}",
+                                label(kind)
+                            )
+                        });
+                    }
                 }
-                if kind == "releases"
-                    && let Ok(Value::Array(items)) = serde_json::from_slice::<Value>(&bytes)
-                {
-                    let asset_count = items
-                        .iter()
-                        .filter_map(|item| item.get("assets")?.as_array())
-                        .map(Vec::len)
-                        .sum::<usize>();
-                    artifacts.insert("release_assets".to_owned(), asset_count as u64);
-                }
-                artifacts.insert(kind.to_owned(), count);
                 evidence.push(evidence_file(format!("api/{kind}.json"), bytes));
             }
             Err(error) => {
@@ -709,7 +915,7 @@ pub fn inventory_github(repository: &str, token: &str) -> Result<(Inventory, Vec
             source: format!("GitHub API: {repository}"),
             captured_at_unix: now_unix(),
             artifacts,
-            incomplete: BTreeMap::new(),
+            incomplete,
             unavailable,
         },
         evidence,
