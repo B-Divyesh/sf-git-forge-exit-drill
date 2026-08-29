@@ -1,52 +1,72 @@
-# Review 3 handoff — FAIL
+# Polish 3 handoff — PASS
 
-Reviewed candidate `9371a8ccae8d056da1ca6d56cb6adc5599bf4e44`
-against <https://git-forge-exit-drill.sociobot.in> on 2026-08-29. No product
-code was modified. The complete adversarial report is
-`.factory/review-3.md`.
-
-## What was done
-
-- Repeated the cold first read at 390×844 and 1440×900.
-- Audited every landing-page and README sentence, heading, and action.
-- Exercised the one-click demo, Reset, Start for real, direct demo URL,
-  separate storage, same-origin requests, and offline reload.
-- Ran the CLI demo from a temporary directory with rejecting proxies.
-- Ran all 22 exact `.factory/claims.json` commands from a clean clone.
-- Rechecked every finding from reviews 1 and 2 against live behavior and code.
-- Crawled links and checked metadata, routing, Back/Forward focus, 404,
-  responsive layout, accessibility, and the product-specific visual system.
-
-## Verification
+Repaired and deployed commit
+`cc0a1c5a43c7bce90b3afe4b8f453d8a30e6ce5f` on 2026-08-29. The deployment
+used the work-order static configuration:
 
 ```sh
 npm ci --ignore-scripts --no-audit --no-fund
-npm test
-npm run build
-cargo fmt --all -- --check
-cargo clippy --all-targets --all-features -- -D warnings
+npm run build:site
+/opt/fleet/lib/deploy-static.sh git-forge-exit-drill dist/site
 ```
 
-Results:
+Azure Static Web Apps deployment `601c81d5-1344-41d5-b3ba-e7f304c91147`
+completed successfully. The live URL is
+<https://git-forge-exit-drill.sociobot.in>.
 
-- Claims: 22/22 exact commands passed.
-- Full suite: 5 Rust unit, 13 Rust integration, and 40 Playwright tests passed.
-- Build, format, clippy, and generated copy audit passed.
-- Factory live verifier passed `/`, `/demo`, `/privacy`, and `/terms`.
-- Independent live Axe checks found zero WCAG A/AA violations on all routes
-  and the designed 404.
-- Live JS, CSS, and downloadable binary hashes matched the clean build.
+## What changed
 
-## Findings left
+- Replaced the untestable receipt-delivery statement with the tested sentence:
+  “You buy from Sociobot through its hosted checkout.”
+- Added the `demo-valid-git-mirror` claim and its tagged, end-to-end test. It
+  runs the CLI demo in a fresh directory, runs `git fsck --no-dangling` on the
+  generated mirror, and checks `readiness.json` records Git history as
+  captured.
+- Narrowed README archive wording to the registered, tested authenticated
+  encryption guarantee.
+- Updated the verb-first catalog description: “Test a GitHub move before
+  cutover with local evidence.”
+- Regenerated the rendered copy audit and retained every earlier repair.
 
-1. **BLOCKING — F-3-1 / F-2-7 reopened:** the landing page still promises
-   receipt handling, although the repair record says receipt promises were
-   removed and no claim test proves receipt issuance.
-2. **F-3-2:** the README's “validated sample Git mirror” promise is absent
-   from the claim registry and tagged assertions.
-3. **F-3-3:** the README names AES-256-GCM and Argon2id, but the registered
-   encryption claim and tagged test do not lock those algorithms.
+`.factory/polish-3.md` maps every F-1, F-2, and F-3 finding to its durable
+change and evidence.
 
-Next work should remove or register and test these three promises, deploy the
-repair, then repeat the complete review. No infrastructure, DNS, billing, or
-product files were changed in this review.
+## Exact verification evidence
+
+Fresh clone: `/tmp/gfed-polish3-clean.36Fkf8` at
+`cc0a1c5a43c7bce90b3afe4b8f453d8a30e6ce5f`.
+
+- All 23 exact commands in `.factory/claims.json` passed, including the final
+  `license-browser-storage` command rerun verbatim after the runner's missing
+  trailing-newline edge case. Transcript:
+  `/tmp/gfed-polish3-clean-claims.log`.
+- `npm test` passed there: 5 Rust unit tests, 13 Rust integration tests, and
+  41 Playwright tests.
+- `npm run build`, `npm run audit:copy`, `cargo fmt --all -- --check`, and
+  `cargo clippy --all-targets --all-features -- -D warnings` passed.
+- `cargo package --allow-dirty` produced and verified
+  `target/package/git-forge-exit-drill-0.1.0.crate`.
+- Production assets are 19.75 kB JavaScript raw / 6.50 kB gzip and 14.40 kB
+  CSS raw / 3.83 kB gzip.
+
+## Live recheck
+
+- `/`, `/demo`, `/privacy`, and `/terms` each passed `verify-url.sh` with no
+  console errors, one H1, language, main landmark, and image/button labeling.
+- Live Axe found zero serious or critical violations on those routes and the
+  designed 404. See `.factory/evidence/polish-3/live/axe.json`.
+- Cold `?demo=1` normalized to `/demo`, used only `demo:` storage, preserved a
+  `real:` sentinel, kept Reset focus, and removed only demo storage when
+  leaving. Offline reload after the first visit worked with same-origin
+  requests only. See `live-recheck.json` and `offline-demo.json`.
+- `/not-a-route` returns 404 with the designed return-home page. Required
+  routes, robots, sitemap, and Linux download return 200.
+- Live JS and Linux-binary SHA-256 values match the local production build.
+
+Screenshots, raw route responses, verifier output, and live checks are in
+`.factory/evidence/polish-3/{local,live}/`.
+
+## Known gaps and next steps
+
+None. The CLI package is ready for factory-owned publication with
+`cargo package`; do not publish it from this worker.

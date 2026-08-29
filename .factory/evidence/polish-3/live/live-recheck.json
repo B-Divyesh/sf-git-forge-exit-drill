@@ -1,0 +1,22 @@
+{
+  "landing": {
+    "title": "Git Forge Exit Drill — test a GitHub move",
+    "hostedCheckout": 1,
+    "receiptCopy": 0
+  },
+  "directDemo": {
+    "url": "https://git-forge-exit-drill.sociobot.in/demo",
+    "banner": 1,
+    "demoKey": true,
+    "realSentinel": "kept",
+    "resetFocused": true,
+    "realUrl": "https://git-forge-exit-drill.sociobot.in/#install",
+    "demoRemoved": true,
+    "realPreserved": "kept"
+  },
+  "missing": {
+    "status": "This route has no evidence",
+    "returnHome": 1
+  },
+  "errors": []
+}
