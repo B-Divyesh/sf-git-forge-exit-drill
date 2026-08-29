@@ -613,6 +613,18 @@ test('@claim:cli-demo-isolated CLI demo prints isolated output paths and preserv
   await expect(readFile(join(occupied, 'sentinel.txt'), 'utf8')).resolves.toBe('keep this');
 });
 
+test('@claim:demo-valid-git-mirror CLI demo creates a Git-valid mirror and captures its repository history', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'gfed-demo-valid-mirror-'));
+  await execFile(binary, ['demo', '--output', root]);
+  const mirror = join(root, 'sample-export', 'atlas-notes.git');
+  await expect(execFile('git', [`--git-dir=${mirror}`, 'fsck', '--no-dangling'])).resolves.toBeTruthy();
+  const report = JSON.parse(await readFile(join(root, 'result', 'readiness.json'), 'utf8'));
+  expect(report.findings.find((finding: { artifact: string }) => finding.artifact === 'git_repository')).toMatchObject({
+    captured: true,
+    count: 1,
+  });
+});
+
 test('@claim:target-mappings named target versions have each published support state', async () => {
   const mapping = JSON.parse(await readFile(join(process.cwd(), 'mappings', 'targets.json'), 'utf8'));
   expect(mapping.targets.map((target: { label: string }) => target.label)).toEqual(['Forgejo 9.0', 'Gitea 1.22', 'GitLab 17.0']);
@@ -669,6 +681,7 @@ test('@claim:linux-download production site output ships an executable versioned
 test('@claim:billing-contract Team Pack checkout is active and shows the published one-time $39 offer', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByText('A $39 one-time purchase adds the portfolio command and one consolidated readiness report.')).toBeVisible();
+  await expect(page.getByText('You buy from Sociobot through its hosted checkout.')).toBeVisible();
   await expect(page.getByRole('link', { name: /Buy Team Pack/ })).toHaveAttribute('href', 'https://api.sociobot.in/api/v1/products/git-forge-exit-drill/checkout');
   await page.goto('/terms');
   await expect(page.getByText('The Team Pack costs $39 once.')).toBeVisible();

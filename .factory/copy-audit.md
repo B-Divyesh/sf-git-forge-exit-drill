@@ -76,7 +76,7 @@ PASS — every audited unit is within the plain-words limit.
 | / | p | The one-repository drill stays free. | 5 | pass |
 | / | p | The sample repository has code, issues, releases, and build history. | 10 | pass |
 | / | p | v0.1.0 · build 2026.08.28 | 3 | pass |
-| / | p | You buy from Sociobot, which handles payment and receipts. | 9 | pass |
+| / | p | You buy from Sociobot through its hosted checkout. | 8 | pass |
 | / | pre | $ git-forge-exit-drill demoDemo — sample data. | 5 | pass |
 | / | pre | No workspace files were read.Repository: acme-labs/atlas-notesTarget: Forgejo 9.0Outcome: BLOCKEDDemo archive passphrase: demo-only-passphraseChoose a new output directory to run this demo again. | 21 | pass |
 | / | span | ↗ | 0 | pass |
@@ -216,7 +216,7 @@ PASS — every audited unit is within the plain-words limit.
 | README | heading | Team Pack | 2 | pass |
 | README | heading | Try the bundled drill | 4 | pass |
 | README | heading | Verify an archive | 3 | pass |
-| README | list item | `evidence.gfed`: source evidence protected with AES-256-GCM after Argon2id | 8 | pass |
+| README | list item | `evidence.gfed`: source evidence protected with authenticated encryption. | 7 | pass |
 | README | list item | `readiness.json`: the same findings for scripts. | 6 | pass |
 | README | list item | `readiness.md`: findings and a restore checklist for people. | 8 | pass |
 | README | prose | `npm run build` creates the release binary and static site in `dist/site/`. | 12 | pass |
@@ -240,7 +240,6 @@ PASS — every audited unit is within the plain-words limit.
 | README | prose | It checks an authorized GitHub export or API repository, writes an encrypted evidence archive, and creates readiness reports before cutover. | 20 | pass |
 | README | prose | It compares their record counts with the manifest. | 8 | pass |
 | README | prose | It creates a validated sample Git mirror and prints its report and archive paths. | 14 | pass |
-| README | prose | key derivation. | 2 | pass |
 | README | prose | Local export drills make no network requests. | 7 | pass |
 | README | prose | MIT. | 1 | pass |
 | README | prose | Portfolio license checks contact only the Sociobot billing API. | 9 | pass |

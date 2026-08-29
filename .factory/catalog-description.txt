@@ -1,1 +1,1 @@
-Check a GitHub move before cutover with local evidence.
+Test a GitHub move before cutover with local evidence.

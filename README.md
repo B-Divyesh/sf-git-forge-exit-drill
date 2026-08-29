@@ -49,8 +49,7 @@ The output directory contains:
 
 - `readiness.md`: findings and a restore checklist for people.
 - `readiness.json`: the same findings for scripts.
-- `evidence.gfed`: source evidence protected with AES-256-GCM after Argon2id
-  key derivation.
+- `evidence.gfed`: source evidence protected with authenticated encryption.
 
 Choose an output directory outside the selected export. The CLI refuses an
 overlapping path so the source stays read-only.

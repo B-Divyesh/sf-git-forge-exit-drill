@@ -96,7 +96,7 @@ function home(): string {
       <div><h2 id="pricing-title">Check ten repositories together</h2><p>A $39 one-time purchase adds the portfolio command and one consolidated readiness report. The one-repository drill stays free.</p><ul><li>Up to ten local exports per run</li><li>One consolidated readiness report in Markdown</li></ul></div>
       <div class="purchase">
         <a class="button primary" href="${BILLING}/api/v1/products/${PRODUCT}/checkout">Buy Team Pack — $39 <span aria-label="(hosted checkout)">↗</span></a>
-        <p>You buy from Sociobot, which handles payment and receipts.</p>
+        <p>You buy from Sociobot through its hosted checkout.</p>
         <button class="button secondary" type="button" data-show-license-form>Enter Team Pack license</button>
         <form class="license-form" hidden>
           <label for="license-token">License token</label>
