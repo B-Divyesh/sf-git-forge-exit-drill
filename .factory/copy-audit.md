@@ -12,7 +12,7 @@ marketing word.
 Run `npm run audit:copy` after changing copy. It fails until this audit is
 updated for the exact reviewed sources.
 
-- `site/src/main.ts: d241ae84e836c7f0e8153e6fe9f5c826e50871245a980a917c3e550217c15759`
+- `site/src/main.ts: ddcc2e1d4796c0a030d8572f44cd7bbe8f2fc1dd830a8171d704eec0df6f2c55`
 - `README.md: 8915abba49b5de0adc71efacd3f9d7e10ccbed91ab1d9aebbe476c980cb74014`
 
 ## Landing and route strings
