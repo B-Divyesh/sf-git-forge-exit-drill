@@ -180,3 +180,21 @@ The only external server-side product-unlock endpoint enforced the observed
 30-request allowance: request 31 returned 429 with `Retry-After: 4`. No
 defects were observed. See `.factory/verification-11.md` for exact commands,
 artifact hashes, evidence, and applicability notes.
+
+## Independent verification 12 — PASS
+
+On 2026-08-29, fresh independent QA tested the requested commit
+`c7f35bf50d651c31131db7c0c47880a5dff3c1ef` at
+`https://git-forge-exit-drill.sociobot.in`. **PASS.** All 21 declared claim
+commands passed from their clean-install demo entry points; the local full
+suite and production build passed; and a clean installed crate consumer ran
+the real bundled drill, verified its 29-file encrypted archive, and exercised
+an invalid-input recovery.
+
+The live JS, CSS, hero image, and Linux binary match the candidate's fresh
+production build byte-for-byte. Live browser checks passed desktop/mobile,
+keyboard/focus, reduced motion, Axe, privacy request logs, headers/caching,
+service-worker update, and offline demo reload. The live license endpoint
+enforced 30 requests per active window (request 31: 429, `Retry-After: 3`).
+No release blocker or other product defect was found. See
+`.factory/verification-12.md` for exact evidence, hashes, and test results.
