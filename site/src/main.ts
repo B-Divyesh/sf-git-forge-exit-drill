@@ -102,8 +102,8 @@ function home(): string {
           <label for="license-token">License token</label>
           <input id="license-token" name="license" type="password" autocomplete="off" required />
           <button class="button secondary" type="submit">Verify license</button>
-          <p class="license-status" role="status" aria-live="polite"></p>
         </form>
+        <p class="license-status" role="status" aria-live="polite"></p>
         <p class="legal-links"><a href="/privacy" data-link>Privacy</a> · <a href="/terms" data-link>Terms</a></p>
       </div>
     </section>
@@ -242,20 +242,20 @@ async function submitLicense(event: SubmitEvent): Promise<void> {
   if (!token) return;
   localStorage.setItem(`sb_license:${PRODUCT}`, token);
   setLicenseStatus('Checking license…');
-  await verifyLicense(token, true);
+  await verifyLicense(token);
 }
 
-async function verifyLicense(token: string, force = false): Promise<void> {
+async function verifyLicense(token: string): Promise<void> {
   const cacheKey = `sb_license_cache:${PRODUCT}`;
-  const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null') as { valid: boolean; checkedAt: number } | null;
-  if (!force && cached && Date.now() - cached.checkedAt < 86_400_000) {
+  const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null') as { token?: string; valid: boolean; checkedAt: number } | null;
+  if (cached?.token === token && Date.now() - cached.checkedAt < 86_400_000) {
     setLicenseStatus(cached.valid ? 'Team Pack license active.' : 'License no longer active.');
     return;
   }
   try {
     const response = await fetch(`${BILLING}/api/v1/products/${PRODUCT}/verify?license=${encodeURIComponent(token)}`);
     const verdict = await response.json() as { valid: boolean };
-    localStorage.setItem(cacheKey, JSON.stringify({ valid: verdict.valid, checkedAt: Date.now() }));
+    localStorage.setItem(cacheKey, JSON.stringify({ token, valid: verdict.valid, checkedAt: Date.now() }));
     setLicenseStatus(verdict.valid ? 'Team Pack license active.' : 'License no longer active.');
   } catch {
     setLicenseStatus('License check failed. Connect to the internet and try again.');
@@ -267,14 +267,14 @@ function setLicenseStatus(message: string): void {
   if (status) status.textContent = message;
 }
 
-function acceptReturnedLicense(): void {
+function acceptReturnedLicense(): string | null {
   const params = new URLSearchParams(window.location.search);
   const token = params.get('license');
-  if (!token) return;
+  if (!token) return null;
   localStorage.setItem(`sb_license:${PRODUCT}`, token);
   params.delete('license');
   history.replaceState({}, '', `${window.location.pathname}${params.size ? `?${params}` : ''}${window.location.hash}`);
-  void verifyLicense(token, true);
+  return token;
 }
 
 function announce(message: string): void {
@@ -305,8 +305,7 @@ normalizeDemoQuery();
 window.addEventListener('popstate', () => render(true, true));
 render(false);
 if (currentRoute() !== '/demo') {
-  acceptReturnedLicense();
-  const savedLicense = localStorage.getItem(`sb_license:${PRODUCT}`);
+  const savedLicense = acceptReturnedLicense() ?? localStorage.getItem(`sb_license:${PRODUCT}`);
   if (savedLicense) void verifyLicense(savedLicense);
 }
 if ('serviceWorker' in navigator && import.meta.env.PROD) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js'));

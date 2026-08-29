@@ -393,6 +393,24 @@ test('desktop and 390px mobile render without page overflow or console errors', 
   expect(errors).toEqual([]);
 });
 
+test('390px home reflows without clipping at 200% text size', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+  await expect(page.locator('#pricing-title')).toBeVisible();
+  const dimensions = await page.evaluate(() => {
+    const heading = document.querySelector<HTMLElement>('#pricing-title')!;
+    return {
+      documentClientWidth: document.documentElement.clientWidth,
+      documentScrollWidth: document.documentElement.scrollWidth,
+      headingClientWidth: heading.clientWidth,
+      headingScrollWidth: heading.scrollWidth,
+    };
+  });
+  expect(dimensions.documentScrollWidth).toBeLessThanOrEqual(dimensions.documentClientWidth);
+  expect(dimensions.headingScrollWidth).toBeLessThanOrEqual(dimensions.headingClientWidth);
+});
+
 test('390px interactive controls meet the 44px touch-target baseline', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   for (const route of ['/', '/demo', '/privacy', '/terms']) {
@@ -434,14 +452,37 @@ for (const route of ['/', '/demo', '/privacy', '/terms']) {
 }
 
 test('@claim:license-browser-storage license return, restore, and removal use the required browser key', async ({ page }) => {
+  let verificationRequests = 0;
   await page.route('https://api.sociobot.in/api/v1/products/git-forge-exit-drill/verify?license=returned-token', (route) => route.fulfill({ json: { valid: true, reason: 'ok', expires_at: null } }));
+  page.on('request', (request) => {
+    if (request.url().endsWith('/verify?license=returned-token')) verificationRequests += 1;
+  });
   await page.goto('/?license=returned-token');
   await expect.poll(() => page.evaluate(() => localStorage.getItem('sb_license:git-forge-exit-drill'))).toBe('returned-token');
   await expect(page).not.toHaveURL(/license=/);
+  await expect(page.getByText('Team Pack license active.')).toBeVisible();
+  expect(verificationRequests).toBe(1);
+  await page.reload();
+  await expect(page.getByText('Team Pack license active.')).toBeVisible();
+  expect(verificationRequests).toBe(1);
   await page.goto('/privacy');
   await page.getByRole('button', { name: 'Remove saved license' }).click();
   await expect(page.getByText('Saved license removed.')).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('sb_license:git-forge-exit-drill'))).toBeNull();
+});
+
+test('returned invalid license is checked once and its cached notice stays visible', async ({ page }) => {
+  let verificationRequests = 0;
+  await page.route('https://api.sociobot.in/api/v1/products/git-forge-exit-drill/verify?license=returned-invalid', (route) => {
+    verificationRequests += 1;
+    return route.fulfill({ json: { valid: false, reason: 'invalid', expires_at: null } });
+  });
+  await page.goto('/?license=returned-invalid');
+  await expect(page.getByText('License no longer active.')).toBeVisible();
+  expect(verificationRequests).toBe(1);
+  await page.reload();
+  await expect(page.getByText('License no longer active.')).toBeVisible();
+  expect(verificationRequests).toBe(1);
 });
 
 test('unknown routes show a styled way home', async ({ page }) => {

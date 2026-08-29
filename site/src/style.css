@@ -40,7 +40,7 @@ main { position: relative; }
 .hero { width: min(1400px, 100%); margin: 0 auto; display: grid; grid-template-columns: minmax(320px, .85fr) minmax(440px, 1.15fr); min-height: clamp(600px, calc(100svh - 72px), 710px); align-items: center; overflow: hidden; }
 .hero-copy { padding: clamp(32px, 6vh, 80px) max(32px, calc((100vw - 1240px)/2)); padding-right: 32px; position: relative; z-index: 2; }
 .eyebrow, .section-index { color: var(--signal); font: 700 .76rem/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .14em; text-transform: uppercase; }
-h1, h2, h3 { margin-top: 0; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: -.045em; line-height: 1.04; text-wrap: balance; }
+h1, h2, h3 { margin-top: 0; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: -.045em; line-height: 1.04; overflow-wrap: anywhere; text-wrap: balance; }
 h1 { max-width: 10ch; margin-bottom: 24px; font-size: clamp(2.8rem, 6.2vw, 5.7rem); }
 h2 { max-width: 15ch; font-size: clamp(2rem, 4vw, 3.8rem); }
 h3 { margin-bottom: 8px; font-size: 1.25rem; }
@@ -91,7 +91,7 @@ p { max-width: var(--measure); }
 .boundary-list { border-top: 1px solid var(--coral); }
 .boundary-list p { margin: 0; padding: 18px 0; border-bottom: 1px solid var(--ink-800); font-family: ui-monospace, monospace; }
 .boundary-list span { color: var(--coral); margin-right: 18px; font-weight: 800; }
-.pricing { display: grid; grid-template-columns: 150px 1fr .8fr; gap: 32px; }
+.pricing { display: grid; grid-template-columns: 150px minmax(0, 1fr) minmax(0, .8fr); gap: 32px; }
 .pricing ul { padding-left: 20px; color: var(--paper-muted); }
 .pricing li { margin: 8px 0; }
 .purchase { border-top: 3px solid var(--signal); padding-top: 24px; }
