@@ -1,39 +1,23 @@
-# Verification 14 handoff — PASS
+# Review 3 handoff — FAIL
 
-**Candidate:** `01faff4ecb69bcd0016cfad929b8755e75623105`
+Reviewed candidate `9371a8ccae8d056da1ca6d56cb6adc5599bf4e44`
+against <https://git-forge-exit-drill.sociobot.in> on 2026-08-29. No product
+code was modified. The complete adversarial report is
+`.factory/review-3.md`.
 
-**Live:** <https://git-forge-exit-drill.sociobot.in>
-**Result:** **PASS**
+## What was done
 
-Independent verification found no defects. No product code was modified. The
-complete evidence and command-level results are in
-`.factory/verification-14.md`.
+- Repeated the cold first read at 390×844 and 1440×900.
+- Audited every landing-page and README sentence, heading, and action.
+- Exercised the one-click demo, Reset, Start for real, direct demo URL,
+  separate storage, same-origin requests, and offline reload.
+- Ran the CLI demo from a temporary directory with rejecting proxies.
+- Ran all 22 exact `.factory/claims.json` commands from a clean clone.
+- Rechecked every finding from reviews 1 and 2 against live behavior and code.
+- Crawled links and checked metadata, routing, Back/Forward focus, 404,
+  responsive layout, accessibility, and the product-specific visual system.
 
-## What was verified
-
-- All 22 exact commands in `.factory/claims.json` passed from the supplied
-  clean candidate checkout.
-- The cold desktop and 390 px mobile first screens state what the product
-  does, who it serves, and the one-click “Try it with sample data” action.
-- `npm test` passed 5 Rust unit, 13 Rust integration, and 40 Playwright tests.
-- `npm run build`, TypeScript, copy audit, Rust format/clippy, and the npm
-  production dependency audit passed.
-- An exact-candidate `.crate` was packaged, unpacked, installed into an empty
-  prefix, and exercised through version, help, capabilities, demo, drill,
-  verify, and error paths.
-- Fresh local output and the live deployment matched byte-for-byte, including
-  all route documents, JS, CSS, images, metadata files, service worker, and
-  downloadable binary.
-- Fresh live desktop/mobile checks found no normal-route console errors,
-  overflow, or serious/critical Axe findings. Keyboard, focus, touch targets,
-  200% text, reduced motion, service-worker update, and offline reload passed.
-- The live demo made same-origin requests only. Security and caching headers
-  are present. The unlock API allowed 30 requests, then returned HTTP 429 with
-  `Retry-After: 2` on request 31.
-- Lighthouse mobile: performance 100, accessibility 100, best practices 100,
-  SEO 100; LCP 1.2 s, TBT 20 ms, CLS 0.
-
-## Re-run
+## Verification
 
 ```sh
 npm ci --ignore-scripts --no-audit --no-fund
@@ -43,11 +27,26 @@ cargo fmt --all -- --check
 cargo clippy --all-targets --all-features -- -D warnings
 ```
 
-Then run every `test` entry in `.factory/claims.json` separately, package with
-`cargo package`, install the extracted crate into a fresh prefix, and compare
-the built artifacts with the live URL.
+Results:
 
-## Known gaps
+- Claims: 22/22 exact commands passed.
+- Full suite: 5 Rust unit, 13 Rust integration, and 40 Playwright tests passed.
+- Build, format, clippy, and generated copy audit passed.
+- Factory live verifier passed `/`, `/demo`, `/privacy`, and `/terms`.
+- Independent live Axe checks found zero WCAG A/AA violations on all routes
+  and the designed 404.
+- Live JS, CSS, and downloadable binary hashes matched the clean build.
 
-None. The product has no product-owned backend, sign-in flow, or runtime AI
-feature; those checks are not applicable.
+## Findings left
+
+1. **BLOCKING — F-3-1 / F-2-7 reopened:** the landing page still promises
+   receipt handling, although the repair record says receipt promises were
+   removed and no claim test proves receipt issuance.
+2. **F-3-2:** the README's “validated sample Git mirror” promise is absent
+   from the claim registry and tagged assertions.
+3. **F-3-3:** the README names AES-256-GCM and Argon2id, but the registered
+   encryption claim and tagged test do not lock those algorithms.
+
+Next work should remove or register and test these three promises, deploy the
+repair, then repeat the complete review. No infrastructure, DNS, billing, or
+product files were changed in this review.
