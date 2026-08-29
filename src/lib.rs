@@ -19,6 +19,7 @@ use zeroize::Zeroize;
 const ARCHIVE_MAGIC: &[u8; 8] = b"GFEDv001";
 const MAX_FILE_BYTES: u64 = 25 * 1024 * 1024;
 const MAX_ARCHIVE_BYTES: u64 = 250 * 1024 * 1024;
+const MAX_API_PAGES: usize = 10_000;
 const BILLING_BASE: &str = "https://api.sociobot.in";
 const PRODUCT_SLUG: &str = "git-forge-exit-drill";
 
@@ -867,7 +868,8 @@ pub fn inventory_github(repository: &str, token: &str) -> Result<(Inventory, Vec
     ];
     for (kind, path) in endpoints {
         match api_get_paginated(&api_base, &path, token) {
-            Ok(bytes) => {
+            Ok(response) => {
+                let bytes = response.bytes;
                 match parsed_artifact_counts(kind, &bytes) {
                     Ok(parsed) => {
                         let has_valid_issue_count = parsed.counts.contains_key("issues");
@@ -898,6 +900,14 @@ pub fn inventory_github(repository: &str, token: &str) -> Result<(Inventory, Vec
                         });
                     }
                 }
+                if let Some(reason) = response.incomplete {
+                    incomplete.entry(kind.to_owned()).or_insert(reason.clone());
+                    if kind == "releases" {
+                        incomplete
+                            .entry("release_assets".to_owned())
+                            .or_insert(reason);
+                    }
+                }
                 evidence.push(evidence_file(format!("api/{kind}.json"), bytes));
             }
             Err(error) => {
@@ -923,28 +933,88 @@ pub fn inventory_github(repository: &str, token: &str) -> Result<(Inventory, Vec
 }
 
 fn api_get(base: &str, path: &str, token: &str) -> Result<Vec<u8>> {
-    let url = format!("{}{}", base.trim_end_matches('/'), path);
+    Ok(api_get_page(base, path, token)?.bytes)
+}
+
+#[derive(Debug)]
+struct ApiPage {
+    bytes: Vec<u8>,
+    next: Option<String>,
+}
+
+#[derive(Debug)]
+struct PaginatedApiResponse {
+    bytes: Vec<u8>,
+    incomplete: Option<String>,
+}
+
+fn api_get_page(base: &str, path_or_url: &str, token: &str) -> Result<ApiPage> {
+    let base = base.trim_end_matches('/');
+    let url = if path_or_url.starts_with("http://") || path_or_url.starts_with("https://") {
+        let suffix = path_or_url.strip_prefix(base).ok_or_else(|| {
+            anyhow!("GitHub pagination pointed outside the configured API origin")
+        })?;
+        if !suffix.starts_with('/') && !suffix.starts_with('?') {
+            bail!("GitHub pagination pointed outside the configured API origin")
+        }
+        path_or_url.to_owned()
+    } else if path_or_url.starts_with('/') {
+        format!("{base}{path_or_url}")
+    } else {
+        bail!("GitHub pagination returned an invalid next-page URL")
+    };
     let response = ureq::get(&url)
         .set("Accept", "application/vnd.github+json")
         .set("Authorization", &format!("Bearer {token}"))
         .set("User-Agent", "git-forge-exit-drill/0.1")
         .call()
         .map_err(|error| anyhow!("{error}"))?;
+    let next = next_link(response.header("Link"));
     let mut bytes = Vec::new();
     response
         .into_reader()
-        .take(MAX_FILE_BYTES)
+        .take(MAX_FILE_BYTES + 1)
         .read_to_end(&mut bytes)?;
-    Ok(bytes)
+    if bytes.len() as u64 > MAX_FILE_BYTES {
+        bail!("an API page exceeds the 25 MB evidence limit; use a local GitHub export instead")
+    }
+    Ok(ApiPage { bytes, next })
 }
 
-fn api_get_paginated(base: &str, path: &str, token: &str) -> Result<Vec<u8>> {
-    let first = api_get(base, path, token)?;
-    let mut value: Value = serde_json::from_slice(&first)?;
+fn next_link(header: Option<&str>) -> Option<String> {
+    header?.split(',').find_map(|entry| {
+        let mut parts = entry.split(';');
+        let target = parts.next()?.trim();
+        let is_next = parts.any(|parameter| {
+            let Some((name, value)) = parameter.trim().split_once('=') else {
+                return false;
+            };
+            name.eq_ignore_ascii_case("rel")
+                && value
+                    .trim()
+                    .trim_matches('"')
+                    .split_ascii_whitespace()
+                    .any(|relation| relation.eq_ignore_ascii_case("next"))
+        });
+        if !is_next {
+            return None;
+        }
+        target
+            .strip_prefix('<')
+            .and_then(|target| target.strip_suffix('>'))
+            .map(str::to_owned)
+    })
+}
+
+fn api_get_paginated(base: &str, path: &str, token: &str) -> Result<PaginatedApiResponse> {
+    let first = api_get_page(base, path, token)?;
+    let mut downloaded_bytes = first.bytes.len() as u64;
+    let mut next = first.next;
+    let mut value: Value = serde_json::from_slice(&first.bytes)?;
     let (array_key, first_count, total_count) = match &value {
         Value::Array(items) => (None, items.len(), None),
         Value::Object(map) => {
-            let key = ["workflow_runs", "workflows"]
+            let key = ["workflow_runs", "workflows", "items"]
                 .into_iter()
                 .find(|key| map.get(*key).and_then(Value::as_array).is_some());
             let count = key
@@ -955,23 +1025,56 @@ fn api_get_paginated(base: &str, path: &str, token: &str) -> Result<Vec<u8>> {
             let total = map.get("total_count").and_then(Value::as_u64);
             (key.map(str::to_owned), count, total)
         }
-        _ => return Ok(first),
+        _ => {
+            return Ok(PaginatedApiResponse {
+                bytes: first.bytes,
+                incomplete: None,
+            });
+        }
     };
-    if first_count < 100 && total_count.is_none_or(|total| total as usize <= first_count) {
-        return Ok(first);
+    let mut current_count = first_count as u64;
+    let mut pages_fetched = 1_usize;
+    let mut seen = BTreeSet::from([path.to_owned()]);
+    let mut incomplete = None;
+
+    if next.is_none() && total_count.is_some_and(|total| current_count < total) {
+        next = Some(format!("{path}&page=2"));
     }
 
-    for page in 2..=100 {
-        let page_path = format!("{path}&page={page}");
-        let page_bytes = api_get(base, &page_path, token)?;
-        let page_value: Value = serde_json::from_slice(&page_bytes)?;
+    while let Some(request) = next.take() {
+        if pages_fetched >= MAX_API_PAGES {
+            incomplete = Some(format!(
+                "GitHub API pagination reached the {MAX_API_PAGES}-page safety limit after {current_count} records; use a local GitHub export instead"
+            ));
+            break;
+        }
+        if !seen.insert(request.clone()) {
+            incomplete = Some(format!(
+                "GitHub API pagination repeated a page after {current_count} records; retry the drill or use a local GitHub export"
+            ));
+            break;
+        }
+
+        let page = api_get_page(base, &request, token)?;
+        downloaded_bytes += page.bytes.len() as u64;
+        if downloaded_bytes > MAX_FILE_BYTES {
+            bail!(
+                "an API artifact exceeds the 25 MB evidence limit; use a local GitHub export instead"
+            )
+        }
+        let page_value: Value = serde_json::from_slice(&page.bytes)?;
         let page_items = match (&array_key, page_value) {
-            (None, Value::Array(items)) => items,
-            (Some(key), Value::Object(mut map)) => map
-                .remove(key)
-                .and_then(|items| items.as_array().cloned())
-                .unwrap_or_default(),
-            _ => Vec::new(),
+            (None, Value::Array(items)) => Some(items),
+            (Some(key), Value::Object(mut map)) => {
+                map.remove(key).and_then(|items| items.as_array().cloned())
+            }
+            _ => None,
+        };
+        let Some(page_items) = page_items else {
+            incomplete = Some(format!(
+                "GitHub API pagination returned a page without the expected records after {current_count} records; retry the drill or use a local GitHub export"
+            ));
+            break;
         };
         let page_count = page_items.len();
         match (&array_key, &mut value) {
@@ -983,24 +1086,40 @@ fn api_get_paginated(base: &str, path: &str, token: &str) -> Result<Vec<u8>> {
             }
             _ => {}
         }
-        let current_count = match (&array_key, &value) {
-            (None, Value::Array(items)) => items.len(),
-            (Some(key), Value::Object(map)) => map
-                .get(key)
-                .and_then(Value::as_array)
-                .map(Vec::len)
-                .unwrap_or(0),
-            _ => 0,
-        };
-        if page_count < 100 || total_count.is_some_and(|total| current_count >= total as usize) {
+        current_count += page_count as u64;
+        pages_fetched += 1;
+
+        if page_count == 0
+            && let Some(total) = total_count
+            && current_count < total
+        {
+            incomplete = Some(format!(
+                "GitHub API pagination ended after {current_count} of {total} declared records; retry the drill or use a local GitHub export"
+            ));
             break;
         }
+        next = page.next;
+        if next.is_none() && total_count.is_some_and(|total| current_count < total) {
+            next = Some(format!("{path}&page={}", pages_fetched + 1));
+        }
+    }
+
+    if incomplete.is_none()
+        && let Some(total) = total_count
+        && current_count != total
+    {
+        incomplete = Some(format!(
+            "GitHub API returned {current_count} records but declared {total}; retry the drill or use a local GitHub export"
+        ));
     }
     let combined = serde_json::to_vec(&value)?;
     if combined.len() as u64 > MAX_FILE_BYTES {
         bail!("an API artifact exceeds the 25 MB evidence limit; use a local GitHub export instead")
     }
-    Ok(combined)
+    Ok(PaginatedApiResponse {
+        bytes: combined,
+        incomplete,
+    })
 }
 
 fn evidence_file(path: String, bytes: Vec<u8>) -> EvidenceFile {
@@ -1468,6 +1587,34 @@ mod tests {
         assert_eq!(resolve_target("forgejo").unwrap().version, "9.0");
         assert_eq!(resolve_target("gitea@1.22").unwrap().id, "gitea");
         assert!(resolve_target("unknown:1").is_err());
+    }
+
+    #[test]
+    fn pagination_uses_only_the_next_link_relation() {
+        let link = concat!(
+            "<https://api.example.test/repos/acme/app/issues?page=4>; rel=\"last\", ",
+            "<https://api.example.test/repos/acme/app/issues?page=2>; rel=\"next\""
+        );
+        assert_eq!(
+            next_link(Some(link)).as_deref(),
+            Some("https://api.example.test/repos/acme/app/issues?page=2")
+        );
+        assert_eq!(next_link(Some(link.replace("next", "prev").as_str())), None);
+    }
+
+    #[test]
+    fn pagination_refuses_to_send_the_token_to_another_origin() {
+        let error = api_get_page(
+            "https://api.example.test",
+            "https://attacker.example.test/steal",
+            "fixture-token",
+        )
+        .unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("outside the configured API origin")
+        );
     }
 
     #[test]

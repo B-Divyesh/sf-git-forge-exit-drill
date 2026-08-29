@@ -125,6 +125,15 @@ p { max-width: var(--measure); }
   .preview, .install, .boundaries, .pricing { grid-template-columns: 100px 1fr; }.preview .terminal, .install .code-block, .install > .text-link, .boundaries .boundary-list, .pricing .purchase { grid-column: 2; }
 }
 
+@media (min-width: 861px) and (max-height: 820px) {
+  .hero { min-height: calc(100svh - 72px); }
+  .hero-copy { padding-top: 32px; padding-bottom: 32px; }
+  .hero-copy h1 { margin-bottom: 16px; font-size: clamp(2.8rem, 5vw, 4.2rem); }
+  .lede { margin-bottom: 20px; font-size: 1.05rem; }
+  .hero-action { margin-bottom: 20px; }
+  .hero-art img { min-height: calc(100svh - 72px); }
+}
+
 @media (max-width: 560px) {
   .site-header { width: calc(100% - 24px); }.wordmark span:last-child { display: none; } nav { gap: 12px; } nav a { font-size: .7rem; }
   .hero-copy { padding: 64px 20px 48px; } h1 { font-size: 2.75rem; }.hero-action { align-items: flex-start; flex-direction: column; }.hero-art, .hero-art img { min-height: 320px; }

@@ -1,6 +1,6 @@
 # Landing copy audit
 
-Checked 2026-08-28. Word counts treat hyphenated terms and prices as one word. Headings, buttons, labels, and fragments are included even when they are not sentences.
+Checked 2026-08-29. Word counts treat hyphenated terms and prices as one word. Headings, buttons, labels, and fragments are included even when they are not sentences.
 
 | Copy | Words | Result |
 | --- | ---: | --- |

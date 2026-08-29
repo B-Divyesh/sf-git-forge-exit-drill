@@ -137,6 +137,79 @@ test('@claim:evidence-complete captured counts require valid exported records', 
   for (const [artifact, count] of [['issues', 2], ['pull_requests', 2], ['releases', 1], ['release_assets', 2], ['actions_workflows', 1], ['actions_runs', 1]]) {
     expect(sampleReport.findings.find((finding: { artifact: string }) => finding.artifact === artifact)).toMatchObject({ captured: true, count });
   }
+
+  const requests: string[] = [];
+  let apiOrigin = '';
+  const api = createServer((request, response) => {
+    const requestUrl = new URL(request.url ?? '/', apiOrigin);
+    requests.push(`${requestUrl.pathname}${requestUrl.search}`);
+    response.setHeader('content-type', 'application/json');
+    if (requestUrl.pathname === '/repos/acme/pagination') {
+      response.end(JSON.stringify({ full_name: 'acme/pagination', private: true }));
+      return;
+    }
+    if (requestUrl.pathname.endsWith('/issues')) {
+      const page = Number(requestUrl.searchParams.get('page') ?? '1');
+      if (page === 1) {
+        response.setHeader('link', `<${apiOrigin}${requestUrl.pathname}?state=all&per_page=100&page=2>; rel="next"`);
+      }
+      const firstId = (page - 1) * 100;
+      const records = page <= 2
+        ? Array.from({ length: 100 }, (_, index) => ({ id: firstId + index + 1, title: `Issue ${firstId + index + 1}`, user: { login: 'mira' } }))
+        : [];
+      response.end(JSON.stringify(records));
+      return;
+    }
+    if (requestUrl.pathname.endsWith('/actions/workflows')) {
+      response.end(JSON.stringify({ total_count: 0, workflows: [] }));
+      return;
+    }
+    if (requestUrl.pathname.endsWith('/actions/runs')) {
+      const page = Number(requestUrl.searchParams.get('page') ?? '1');
+      const count = page <= 100 ? 100 : page === 101 ? 1 : 0;
+      const firstId = (page - 1) * 100;
+      response.end(JSON.stringify({
+        total_count: 10_001,
+        workflow_runs: Array.from({ length: count }, (_, index) => ({
+          id: firstId + index + 1,
+          name: `Build ${firstId + index + 1}`,
+          head_sha: `sha-${firstId + index + 1}`,
+        })),
+      }));
+      return;
+    }
+    response.end('[]');
+  });
+  await new Promise<void>((resolve) => api.listen(0, '127.0.0.1', resolve));
+  const address = api.address();
+  if (!address || typeof address === 'string') throw new Error('pagination fixture did not start');
+  apiOrigin = `http://127.0.0.1:${address.port}`;
+  const apiOutput = join(root, 'api-output');
+  try {
+    await execFile(binary, ['drill', '--repo', 'acme/pagination', '--target', 'forgejo:9.0', '--output', apiOutput], {
+      env: {
+        ...environment,
+        GITHUB_TOKEN: 'pagination-fixture-token',
+        GFED_GITHUB_API_BASE: apiOrigin,
+      },
+    });
+  } finally {
+    api.close();
+  }
+  const apiReport = JSON.parse(await readFile(join(apiOutput, 'readiness.json'), 'utf8'));
+  expect(apiReport.findings.find((finding: { artifact: string }) => finding.artifact === 'actions_runs')).toMatchObject({
+    captured: true,
+    count: 10_001,
+  });
+  expect(apiReport.incomplete.actions_runs).toBeUndefined();
+  expect(apiReport.findings.find((finding: { artifact: string }) => finding.artifact === 'issues')).toMatchObject({
+    captured: true,
+    count: 200,
+  });
+  expect(requests).toContain('/repos/acme/pagination/actions/runs?per_page=100&page=101');
+  expect(requests.some((request) => request.includes('/actions/runs?') && request.includes('page=102'))).toBe(false);
+  expect(requests).toContain('/repos/acme/pagination/issues?state=all&per_page=100&page=2');
+  expect(requests.some((request) => request.includes('/issues?') && request.includes('page=3'))).toBe(false);
 });
 
 test('@claim:free-single one-repository drill runs without a license or network', async () => {
@@ -280,6 +353,25 @@ test('landing page has the required first screen and keyboard path', async ({ pa
   await page.getByRole('link', { name: 'Try it with sample data' }).click();
   await expect(page).toHaveURL(/\/demo$/);
   await expect(page.locator('h1')).toBeFocused();
+});
+
+test('required first-screen content fits common desktop viewports', async ({ page }) => {
+  for (const viewport of [{ width: 1280, height: 720 }, { width: 1366, height: 768 }]) {
+    await page.setViewportSize(viewport);
+    await page.goto('/');
+    for (const locator of [
+      page.getByRole('heading', { level: 1 }),
+      page.locator('.lede'),
+      page.getByRole('link', { name: 'Try it with sample data' }),
+      page.locator('.hero-action p'),
+      page.locator('.facts'),
+    ]) {
+      const box = await locator.boundingBox();
+      expect(box, `${await locator.textContent()} has a layout box at ${viewport.width}x${viewport.height}`).not.toBeNull();
+      expect(box!.y, `${await locator.textContent()} starts inside ${viewport.width}x${viewport.height}`).toBeGreaterThanOrEqual(0);
+      expect(box!.y + box!.height, `${await locator.textContent()} fits inside ${viewport.width}x${viewport.height}`).toBeLessThanOrEqual(viewport.height);
+    }
+  }
 });
 
 test('desktop and 390px mobile render without page overflow or console errors', async ({ page }) => {
