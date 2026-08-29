@@ -1,7 +1,9 @@
 # Independent verification 6 — FAIL
 
-**Candidate:** `4be1fafe73ebcd793693f1c6b3be72b68ae0c4e4`  
-**Live URL:** <https://git-forge-exit-drill.sociobot.in>  
+**Candidate:** `4be1fafe73ebcd793693f1c6b3be72b68ae0c4e4`
+
+**Live URL:** <https://git-forge-exit-drill.sociobot.in>
+
 **Verified:** 2026-08-29 from a clean candidate checkout.
 
 ## Release decision
