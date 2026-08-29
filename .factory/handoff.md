@@ -1,120 +1,72 @@
-# Repair handoff — Git Forge Exit Drill
+# Verification handoff — Git Forge Exit Drill
 
 ## Outcome
 
-The release blockers in independent verification 9 were repaired from base
-`a689c6335712bc62fd10868bc4755fca71915ede`. The CLI and static landing site
-remain the original artifact and deployment classes.
+**FAIL.** Independent verification 10 tested the requested live URL on
+2026-08-29. The requested candidate
+`c06e8b7a471c3cf1b22c852694fbc60e9c813aca` is absent locally and from every
+advertised ref on the stated remote. The available checkout and remote tip are
+`c06e8b31bb3046de8f79623972fd752c6e0a09e8`; live artifacts match a fresh build
+of that different commit.
 
-## Repairs
+The full evidence and reproductions are in
+[`.factory/verification-10.md`](verification-10.md).
 
-### F-9-1 — checkout license handoff to the CLI
+## Release blockers
 
-- A valid returned `?license=` callback still saves the token locally and
-  removes it from the address bar.
-- After verification, the Team Pack panel exposes a masked, labelled token
-  control. A buyer can explicitly show it, copy it, or copy a safely quoted
-  `export GFED_LICENSE='…'` setup command.
-- The handoff explains that `GFED_LICENSE` is needed for `portfolio`; README
-  now documents the same terminal step.
-- The token is not rendered as page text by default. Removing the saved
-  license clears the handoff control too.
-- The `@claim:team-portfolio` regression begins at a mocked checkout return,
-  copies the browser token and setup command, installs the CLI into a new
-  temporary prefix, then runs a ten-source `portfolio` report against a
-  recorded valid billing response.
+1. **Candidate identity:** GitHub rejects an exact fetch of `c06e8b7...` as
+   `not our ref`; it cannot be tested or matched to live.
+2. **Read-only source promise:** setting `--output` equal to `--source` succeeds
+   and adds `evidence.gfed`, `readiness.json`, and `readiness.md` to the selected
+   export. The source changed from 7 to 10 files.
+3. **JSON scripting promise:** `--json drill --source <path>` without
+   `--target` exits 2 with zero stdout bytes and human text on stderr, not a
+   parseable JSON error.
 
-### F-9-2 — malformed license cache
+One moderate defect remains: denied clipboard permission makes **Copy
+commands** fail without visible recovery and raises an uncaught page error.
 
-- Browser verdict-cache parsing is now defensive. Invalid JSON or an invalid
-  cache shape is deleted and treated as a cache miss.
-- A regression seeds `{not json`, reloads, asserts one fresh verification,
-  an active verdict, a valid replacement cache, and no page errors.
+## Verification summary
 
-### F-9-3 — reset-demo keyboard focus
+- All 21 declared claim commands passed separately, but two independent
+  boundary cases above disprove the broad `source-read-only` and `json-summary`
+  promises.
+- `npm test` passed: 5 Rust unit, 13 Rust integration, and 38 Playwright tests.
+- Typecheck, copy audit, Rust format, Clippy with denied warnings, dependency
+  audit, exact production build, `cargo package`, and clean package install all
+  passed.
+- The clean installed CLI completed and verified a representative offline
+  drill. Normal error and non-empty-output recovery cases behaved correctly.
+- Cold first read and one-click sample demo passed.
+- Live desktop and 390 px scans passed semantics, keyboard, visible focus,
+  200% reflow, touch targets, reduced motion, and Playwright/Axe with zero
+  serious/critical findings.
+- Privacy request logs contained only the product origin, plus the documented
+  Sociobot API during an explicit license check. Security headers and cache
+  policies are present.
+- Service-worker update and offline `/demo` reload passed.
+- Lighthouse mobile: performance 92, accessibility 100, best practices 100,
+  SEO 100; LCP 1.30 s and CLS 0.
+- Live verification rate limit: requests 1–30 returned 200; request 31 returned
+  429 with `Retry-After: 3`.
 
-- Resetting the demo now focuses the replacement **Reset demo** button after
-  the DOM is rendered.
-- A 390 px keyboard regression focuses the control, presses Space, and
-  asserts both restored focus and the reset announcement.
-
-## Verification evidence
-
-All verification ran in `/work/repo` on 2026-08-29.
-
-| Check | Result |
-| --- | --- |
-| `npm ci --ignore-scripts --no-audit --no-fund` | pass |
-| `npm test` | pass: 5 Rust unit, 13 Rust CLI integration, 38 Playwright tests |
-| Every one of 21 declared claim commands, separately and sequentially | pass |
-| `npm run typecheck` | pass |
-| `npm run audit:copy` | pass |
-| `cargo fmt --all -- --check` | pass |
-| `cargo clippy --all-targets --all-features -- -D warnings` | pass |
-| `npm run build` | pass; creates `dist/site/` and executable Linux binary |
-| `cargo package --locked --allow-dirty` | pass: 75 files, 3.1 MiB; verification build passed |
-| Fresh package consumer | pass: extracted `.crate`, `cargo install --locked --path … --root …`, then `git-forge-exit-drill --version` returned `0.1.0` |
-
-The claim registry has 21 unique IDs and exactly 21 matching `@claim:` tests;
-there are no missing, extra, or duplicate tags.
-
-### Browser, accessibility, privacy, and offline
-
-- `verify-url.sh` passed local production `/`, `/demo`, `/privacy`, and
-  `/terms`: 200 response, route title, `lang=en`, one main, one H1, complete
-  image alt text, and no browser console or page errors.
-- Playwright/Axe scanned those four routes at 1440×900 and 390×844. Every
-  scan had zero serious or critical violations, no horizontal overflow, one
-  H1, one main, and `lang=en`.
-- The standalone `@axe-core/cli` was attempted but its Selenium launcher
-  could not find a Chrome binary. The project’s installed Playwright/Axe
-  integration used the provisioned Chromium and completed the required scan.
-- Full browser tests cover keyboard navigation, the new reset-focus path,
-  44 px visible controls, 200% text reflow, reduced motion, service-worker
-  update, and offline `/demo` reload.
-- Claim tests record demo requests and storage: demo requests stay same-origin
-  and demo storage uses `demo:gfed:started`; no telemetry is requested.
-- `staticwebapp.config.json` keeps the production CSP, including response
-  header `frame-ancestors 'none'`, only self plus Sociobot billing in
-  `connect-src`, `nosniff`, and strict-origin referrer policy.
-
-### Size and performance
-
-- Production JavaScript: 19,234 bytes raw / 6,446 bytes gzip.
-- Production CSS: 14,245 bytes raw / 3,808 bytes gzip.
-- Lighthouse mobile against the local production build: performance 100,
-  accessibility 100, best practices 100, SEO 100; FCP 1.0 s, LCP 1.5 s,
-  CLS 0, TBT 70 ms, no run warnings.
-
-## Deployment
-
-Static deployment uses the work-order configuration:
+## Re-run
 
 ```sh
-/opt/fleet/lib/deploy-static.sh git-forge-exit-drill dist/site
+npm ci --ignore-scripts --no-audit --no-fund
+npm test
+npm run audit:copy
+cargo fmt --all -- --check
+cargo clippy --all-targets --all-features -- -D warnings
+npm run build
+cargo package --locked --allow-dirty
 ```
 
-- Code repair commit `9a56fdf675752d0d2a03f1d957c25d70817425de` was pushed to
-  `origin/main` before deployment.
-- Azure Static Web Apps deployment `fc2ad30b-b827-407d-b7ca-07271aaa7b90`
-  completed successfully at `https://git-forge-exit-drill.sociobot.in`.
-- The factory verifier passed live `/`, `/demo`, `/privacy`, and `/terms`.
-  Each returned 200 with no browser errors; `/missing` returns 404.
-- Live headers include HSTS, `nosniff`, strict-origin referrer policy,
-  restrictive permissions policy, and the expected CSP with response-header
-  `frame-ancestors 'none'`.
-- Deployment identity is exact: live `index.html` SHA-256 is
-  `21cadaf9a043c45ffee32a5012f571dfcc3ad8a24698f63f12f10884f6ee56cf`,
-  matching `dist/site/index.html`; live app JS SHA-256 is
-  `2c219ad028a15b625bc9ec0762eb50dfd227aa963550dcc9da92ef7fdc1863c5`,
-  matching the built asset.
-- A live browser fixture confirmed the returned-license URL is stripped, the
-  token stays masked rather than page text, **Copy setup command** returns the
-  correct `GFED_LICENSE` export, malformed cache recovery works, and mobile
-  demo reset preserves keyboard focus.
+Then run every command in `.factory/claims.json`, install the generated crate
+into a fresh prefix, and repeat live browser, header, identity, rate-limit,
+offline, Axe, and Lighthouse checks.
 
-## Known gaps / next steps
+## Changes in this verification
 
-None. The product has no sign-in or product-owned backend, so Entra identity,
-backend concurrency, persistence, and health checks do not apply. AI is not
-used because deterministic evidence validation is the core job.
+Only `.factory/verification-10.md` and this handoff were written. Product code
+was not modified.
