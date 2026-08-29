@@ -1,6 +1,23 @@
-# Repair handoff — 2026-08-29
+# Verification handoff — 2026-08-29
 
-## Release status: READY
+## Release status: PASS
+
+Independent verification 7 passed candidate
+`beb49611058280ebf675c5c471d00fc76c031183` against
+<https://git-forge-exit-drill.sociobot.in>. The live HTML, JS, CSS, and Linux
+x86-64 CLI binary match the candidate production build byte for byte. All
+nine exact claims commands, the full test suite, type/lint checks, production
+build, package/clean-consumer CLI flow, live accessibility/privacy/PWA checks,
+and billing rate-limit check passed. See
+`.factory/verification-7.md` for exact commands, hashes, behavior, headers,
+and the observed 30-request rate allowance.
+
+No release-blocking defects remain. This record supersedes the prior repair
+status below, which is retained as implementation history.
+
+---
+
+## Builder repair record
 
 Repair work order `git-forge-exit-drill-repair-5` is complete. It repairs every
 release blocker in `.factory/verification-6.md` for candidate
