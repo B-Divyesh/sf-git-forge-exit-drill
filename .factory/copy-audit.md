@@ -1,63 +1,53 @@
-# Landing copy audit
+# Copy audit
 
-Checked 2026-08-29. Word counts treat hyphenated terms and prices as one word. Headings, buttons, labels, and fragments are included even when they are not sentences.
+Checked 2026-08-29 against the rendered route strings and README. A word is a
+whitespace-delimited token after punctuation is removed; hyphenated terms and
+prices count as one word. Navigation, controls, labels, terminal text, alt
+text, footer metadata, and README prose are included. Code blocks and URLs are
+excluded. No reader-facing sentence exceeds 22 words and none uses a banned
+marketing word.
 
-| Copy | Words | Result |
-| --- | ---: | --- |
-| Test your GitHub exit before cutover | 6 | pass |
-| For small teams moving forges, it finds missing history and build evidence before Monday. | 14 | pass |
-| Try it with sample data | 6 | pass |
-| See a complete drill with no setup. | 7 | pass |
-| Local exports stay on your machine. | 6 | pass |
-| No account is needed. | 4 | pass |
-| One-repository drills are free. | 4 | pass |
-| Source artifacts cross the forge boundary. | 6 | pass |
-| Gaps stay visible. | 3 | pass |
-| See the gap before it becomes downtime | 8 | pass |
-| The sample repository has code, issues, releases, and build history. | 10 | pass |
-| It marks a count captured only when valid records back it. | 10 | pass |
-| Run one repeatable drill | 4 | pass |
-| Inventory the source | 3 | pass |
-| Read an extracted export or an authorized GitHub API repository. | 10 | pass |
-| Map the target | 3 | pass |
-| Compare each artifact with a versioned GitLab, Gitea, or Forgejo map. | 11 | pass |
-| Prove the restore | 3 | pass |
-| Keep encrypted evidence, then follow the generated restore checklist. | 9 | pass |
-| Start with the bundled sample | 5 | pass |
-| Build from source, then run the same sample used in this page. | 11 | pass |
-| Copy commands | 2 | pass |
-| Download Linux x86-64 binary | 4 | pass |
-| Know what stays untouched | 4 | pass |
-| The CLI does not cut over repositories, forward webhooks, or host a forge. | 13 | pass |
-| It reads only the source you provide. | 7 | pass |
-| Read the privacy details | 4 | pass |
-| Automatic migration | 2 | pass |
-| Background service | 2 | pass |
-| Telemetry | 1 | pass |
-| Check ten repositories together | 4 | pass |
-| One $39 purchase adds the portfolio command and one ordered risk list. | 12 | pass |
-| The complete one-repository drill stays free. | 6 | pass |
-| Up to ten local exports per run | 7 | pass |
-| One consolidated Markdown report | 4 | pass |
-| License use on your own devices | 6 | pass |
-| Buy Team Pack — $39 | 5 | pass |
-| One-time purchase. | 2 | pass |
-| Sociobot is the merchant of record. | 6 | pass |
-| Have a license? | 3 | pass |
-| Paste it | 2 | pass |
-| Test a GitHub move before cutover. | 7 | pass |
+## Source lock
 
-No line exceeds 22 words. No line uses a banned marketing word.
+Run `npm run audit:copy` after changing copy. It fails until this audit is
+updated for the exact reviewed sources.
+
+- `site/src/main.ts: d241ae84e836c7f0e8153e6fe9f5c826e50871245a980a917c3e550217c15759`
+- `README.md: 129a01b9386310bef81086b52f2b1fc30daf3e10414be107ac66a67f5f37fe74`
+
+## Landing and route strings
+
+| Surface | Copy units reviewed | Result |
+| --- | --- | --- |
+| Header and footer | Git Forge Exit Drill home; Demo; Install; Privacy; Terms; Built by Param Factory; version | pass |
+| First screen | Git host migration check; Test your GitHub move before cutover; audience sentence; Try it with sample data; action consequence; three facts | pass |
+| Image and sample | descriptive alt; target-map caption; Sample result; Sample drill results; sample explanation; terminal label and all seven transcript lines | pass |
+| How it works | Run one repeatable drill; Inventory the source; Map the target; Plan the restore test; three explanations | pass |
+| Install and limits | Start with the bundled sample; install explanation; copy control; Linux download; Know what the CLI writes; limit list | pass |
+| Team Pack | Check ten repositories together; price sentence; two scope bullets; checkout label; license form; legal links | pass |
+| Demo | demo banner; See a complete exit drill; recording explanation; blocked finding; three restore actions; Run your own drill | pass |
+| Privacy | all five headings, summaries, saved-license control, and contact line | pass |
+| Terms | all five headings, scope statements, Team Pack terms, and contact line | pass |
+| Not found | Route / missing; This route has no evidence; recovery sentence and Return home | pass |
+
+## README strings
+
+| Section | Reviewed sentence groups | Result |
+| --- | --- | --- |
+| Introduction and demo | job statement; user; temporary-directory behavior; empty-output refusal | pass |
+| Install and local drill | installation; Linux binary; output names; encryption; record validation; Git-history evidence; archive file coverage | pass |
+| API, verification, and targets | token handling; metadata limitation; JSON output; error behavior; archive verification; target and repository-item definitions | pass |
+| Team Pack and privacy | free scope; $39 one-time scope; license route; three network boundaries; telemetry boundary | pass |
+| Development and license | requirements; build outputs; MIT notice | pass |
 
 ## Terminology table
 
 | Concept | One term |
 | --- | --- |
-| Source evidence package | evidence archive |
+| Destination service | Git host on first use; target afterwards |
+| Data category | repository item on first use; item afterwards |
 | Human output | readiness report |
-| Machine output | JSON report |
-| Dry run of the move | drill |
-| Destination service | target |
-| GitHub data category | artifact |
-| Paid multi-repository feature | Team Pack |
+| Encrypted collected bytes | evidence archive |
+| Dry run | drill |
 | Example state | demo |
+| Paid multi-repository feature | Team Pack |

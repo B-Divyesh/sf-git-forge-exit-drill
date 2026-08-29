@@ -1,6 +1,6 @@
 # Demo contract
 
-- Site URL: `/demo` or `https://git-forge-exit-drill.sociobot.in/demo`.
+- Site URL: `/demo`, `?demo=1`, or `https://git-forge-exit-drill.sociobot.in/demo`.
 - CLI command: `git-forge-exit-drill demo`.
 - Sample: `examples/atlas-notes-export/` contains a realistic manifest, issue and pull-request excerpts, releases, workflow runs, and a license inventory. The CLI creates a small valid bare Git mirror from its bundled Atlas Notes source before inventorying it, so the demo proves real Git object capture.
 - Site reset: choose **Reset demo**. This removes and recreates the `demo:gfed:started` namespace only.

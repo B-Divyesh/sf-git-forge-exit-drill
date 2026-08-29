@@ -1,65 +1,23 @@
 [
-  {
-    "id": "demo-private",
-    "claim": "The sample demo needs no account, sends data only to this site, and uses a separate demo storage key.",
-    "where": "demo banner and demo page",
-    "test": "npm ci --ignore-scripts --no-audit --no-fund && npm test -- --grep @claim:demo-private",
-    "sandbox": "fresh browser context at /demo; record requests and inspect localStorage keys"
-  },
-  {
-    "id": "free-single",
-    "claim": "One-repository local drills are free and need no network connection.",
-    "where": "landing facts, paid section, README",
-    "test": "npm ci --ignore-scripts --no-audit --no-fund && npm test -- --grep @claim:free-single",
-    "sandbox": "bundled export in a temporary directory; no license; rejecting HTTP proxy"
-  },
-  {
-    "id": "source-read-only",
-    "claim": "The CLI reads the selected local export without changing it.",
-    "where": "landing boundary section",
-    "test": "npm ci --ignore-scripts --no-audit --no-fund && npm test -- --grep @claim:source-read-only",
-    "sandbox": "run a bundled local drill, compare a source file before and after, and inspect the separate output"
-  },
-  {
-    "id": "no-telemetry",
-    "claim": "The sample site demo makes no third-party telemetry requests.",
-    "where": "landing boundary list and README privacy section",
-    "test": "npm ci --ignore-scripts --no-audit --no-fund && npm test -- --grep @claim:no-telemetry",
-    "sandbox": "fresh browser context at /demo; record every request origin"
-  },
-  {
-    "id": "recorded-cli",
-    "claim": "The demo recording shows output from the bundled CLI sample drill.",
-    "where": "demo page",
-    "test": "npm ci --ignore-scripts --no-audit --no-fund && npm test -- --grep @claim:recorded-cli",
-    "sandbox": "run the bundled CLI demo and compare its repository, target, and outcome lines with /demo"
-  },
-  {
-    "id": "encrypted-evidence",
-    "claim": "Evidence archives use authenticated encryption and can be verified.",
-    "where": "landing how-it-works, README",
-    "test": "npm ci --ignore-scripts --no-audit --no-fund && npm test -- --grep @claim:encrypted-evidence",
-    "sandbox": "bundled export; assert source text is absent from archive bytes and verify command succeeds"
-  },
-  {
-    "id": "evidence-complete",
-    "claim": "A captured artifact count is backed by valid exported records.",
-    "where": "landing preview, demo recording, README",
-    "test": "npm ci --ignore-scripts --no-audit --no-fund && npm test -- --grep @claim:evidence-complete",
-    "sandbox": "open local and API reports for malformed records, manifest-only totals, more than 100 API pages, and an exact 100-record final page; assert only complete valid collections are captured"
-  },
-  {
-    "id": "token-private",
-    "claim": "GitHub API tokens are read from an environment variable and never written to reports or evidence.",
-    "where": "README API instructions and privacy page",
-    "test": "npm ci --ignore-scripts --no-audit --no-fund && npm test -- --grep @claim:token-private",
-    "sandbox": "local GitHub API fixture with a unique token; inspect every generated output for token bytes"
-  },
-  {
-    "id": "team-portfolio",
-    "claim": "A valid Team Pack license adds a portfolio report for up to ten repositories.",
-    "where": "landing paid section, README",
-    "test": "npm ci --ignore-scripts --no-audit --no-fund && npm test -- --grep @claim:team-portfolio",
-    "sandbox": "two bundled exports and a local recorded valid license response; assert consolidated report rows"
-  }
+  {"id":"demo-private","claim":"The sample demo needs no account, sends data only to this site, and uses separate demo storage.","where":"hero facts and demo banner","test":"npm ci --ignore-scripts --no-audit --no-fund && npm test -- --grep @claim:demo-private","sandbox":"fresh browser context at /demo; request log and localStorage"},
+  {"id":"free-single","claim":"One-repository local drills are free and need no network connection.","where":"hero facts, Team Pack, README","test":"npm ci --ignore-scripts --no-audit --no-fund && npm test -- --grep @claim:free-single","sandbox":"bundled export with rejecting HTTP proxy"},
+  {"id":"source-read-only","claim":"The CLI reads the selected local export without changing it.","where":"landing limits","test":"npm ci --ignore-scripts --no-audit --no-fund && npm test -- --grep @claim:source-read-only","sandbox":"compare source bytes before and after a local drill"},
+  {"id":"no-telemetry","claim":"The sample site demo makes no third-party telemetry requests.","where":"landing limits","test":"npm ci --ignore-scripts --no-audit --no-fund && npm test -- --grep @claim:no-telemetry","sandbox":"fresh browser context at /demo; record every request origin"},
+  {"id":"recorded-cli","claim":"The demo transcript matches the bundled CLI sample drill.","where":"demo page","test":"npm ci --ignore-scripts --no-audit --no-fund && npm test -- --grep @claim:recorded-cli","sandbox":"run the bundled CLI demo and compare its shown lines"},
+  {"id":"encrypted-evidence","claim":"Evidence archives use authenticated encryption and can be verified.","where":"landing, README","test":"npm ci --ignore-scripts --no-audit --no-fund && npm test -- --grep @claim:encrypted-evidence","sandbox":"bundled export; source text absent from archive and verify succeeds"},
+  {"id":"evidence-complete","claim":"A captured repository-item count is backed by valid exported records.","where":"landing preview, demo, README","test":"npm ci --ignore-scripts --no-audit --no-fund && npm test -- --grep @claim:evidence-complete","sandbox":"local and paginated API fixtures with malformed and complete records"},
+  {"id":"token-private","claim":"GitHub API tokens are read from an environment variable and never written to reports or evidence.","where":"README API instructions","test":"npm ci --ignore-scripts --no-audit --no-fund && npm test -- --grep @claim:token-private","sandbox":"local GitHub API fixture with a unique token; inspect outputs"},
+  {"id":"team-portfolio","claim":"A valid Team Pack license adds a portfolio report for up to ten repositories.","where":"landing Team Pack, README","test":"npm ci --ignore-scripts --no-audit --no-fund && npm test -- --grep @claim:team-portfolio","sandbox":"ten bundled exports and a local recorded valid license response"},
+  {"id":"cli-demo-isolated","claim":"CLI demo data is copied to a temporary or empty output directory and never deletes an existing directory.","where":"README demo section, demo transcript","test":"npm ci --ignore-scripts --no-audit --no-fund && npm test -- --grep @claim:cli-demo-isolated","sandbox":"temporary working directory; inspect printed paths and non-empty output sentinel"},
+  {"id":"target-mappings","claim":"Target maps cover GitLab 17.0, Gitea 1.22, and Forgejo 9.0 with native, manual, and unsupported states.","where":"landing how-it-works, README","test":"npm ci --ignore-scripts --no-audit --no-fund && npm test -- --grep @claim:target-mappings","sandbox":"parse bundled mapping fixture and assert named versions and states"},
+  {"id":"restore-checklist","claim":"Each readiness report includes a generated restore checklist.","where":"landing how-it-works, README","test":"npm ci --ignore-scripts --no-audit --no-fund && npm test -- --grep @claim:restore-checklist","sandbox":"bundled local drill; assert restore heading and required steps"},
+  {"id":"output-boundary","claim":"The CLI writes reports and an evidence archive to the output directory.","where":"landing limits","test":"npm ci --ignore-scripts --no-audit --no-fund && npm test -- --grep @claim:output-boundary","sandbox":"bundled local drill; compare output files and unchanged source"},
+  {"id":"linux-download","claim":"The production build includes an executable Linux x86-64 binary with the package version.","where":"landing install, README","test":"npm ci --ignore-scripts --no-audit --no-fund && npm test -- --grep @claim:linux-download","sandbox":"production build output; execute downloaded artifact with --version"},
+  {"id":"billing-contract","claim":"Team Pack is a $39 one-time purchase through Sociobot checkout.","where":"landing Team Pack, terms, README","test":"npm ci --ignore-scripts --no-audit --no-fund && npm test -- --grep @claim:billing-contract","sandbox":"landing and terms static copy plus checkout URL contract"},
+  {"id":"archive-file-completeness","claim":"Every regular source file enters the evidence archive.","where":"README local drill","test":"npm ci --ignore-scripts --no-audit --no-fund && npm test -- --grep @claim:archive-file-completeness","sandbox":"nested, empty, and binary source files; compare archive paths and digests"},
+  {"id":"api-metadata-blocks-git","claim":"API mode inventories metadata but blocks Git-history readiness until a local mirror or bundle is validated.","where":"README API instructions","test":"npm ci --ignore-scripts --no-audit --no-fund && npm test -- --grep @claim:api-metadata-blocks-git","sandbox":"local API fixture; assert no Git bytes, missing git repository, and blocked report"},
+  {"id":"json-summary","claim":"The --json option prints a parseable command summary.","where":"README API instructions","test":"npm ci --ignore-scripts --no-audit --no-fund && npm test -- --grep @claim:json-summary","sandbox":"successful drill and documented failure path stdout"},
+  {"id":"actionable-errors","claim":"Documented errors exit non-zero and give one next step.","where":"README API instructions","test":"npm ci --ignore-scripts --no-audit --no-fund && npm test -- --grep @claim:actionable-errors","sandbox":"missing source and short passphrase fixture errors"},
+  {"id":"cli-network-boundaries","claim":"Local drills make no network requests; API and license checks use only their configured origins.","where":"README privacy section, privacy page","test":"npm ci --ignore-scripts --no-audit --no-fund && npm test -- --grep @claim:cli-network-boundaries","sandbox":"rejecting proxy plus local API and billing fixture request logs"},
+  {"id":"license-browser-storage","claim":"A returned or pasted license is stored in the browser and can be removed from the privacy page.","where":"privacy page and Team Pack form","test":"npm ci --ignore-scripts --no-audit --no-fund && npm test -- --grep @claim:license-browser-storage","sandbox":"mock returned license; inspect localStorage and remove it"}
 ]

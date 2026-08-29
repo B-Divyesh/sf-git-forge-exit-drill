@@ -203,7 +203,7 @@ fn execute(cli: Cli) -> Result<()> {
                     })?
                 );
             } else {
-                println!("Demo — sample data, nothing was read from your workspace.");
+                println!("Demo — sample data. No workspace files were read.");
                 print_result(&result, false)?;
                 println!("Demo archive passphrase: demo-only-passphrase");
                 println!("Choose a new output directory to run this demo again.");
@@ -222,6 +222,10 @@ fn execute(cli: Cli) -> Result<()> {
                         "valid": true,
                         "repository": payload.inventory.repository,
                         "files": payload.files.len(),
+                        "evidence_files": payload.files.iter().map(|file| serde_json::json!({
+                            "path": file.path,
+                            "sha256": file.sha256,
+                        })).collect::<Vec<_>>(),
                         "archive": archive,
                     })
                 );

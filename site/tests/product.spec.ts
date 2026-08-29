@@ -21,7 +21,8 @@ test('@claim:demo-private sample demo is immediate and same-origin only', async 
   await page.goto('/');
   await page.evaluate(() => localStorage.setItem('sb_license:git-forge-exit-drill', 'real-data-must-not-be-read'));
   origins.clear();
-  await page.goto('/demo');
+  await page.goto('/?demo=1');
+  await expect(page).toHaveURL(/\/demo$/);
   await expect(page.getByRole('heading', { level: 1, name: 'See a complete exit drill' })).toBeVisible();
   await expect(page.getByText('Outcome: BLOCKED')).toBeVisible();
   await expect(page.getByText('Demo — sample data, nothing is saved')).toBeVisible();
@@ -42,7 +43,7 @@ test('@claim:recorded-cli the demo transcript matches the bundled CLI drill', as
   const { stdout } = await execFile(binary, ['demo']);
   await page.goto('/demo');
   for (const line of [
-    'Demo — sample data, nothing was read from your workspace.',
+    'Demo — sample data. No workspace files were read.',
     'Repository: acme-labs/atlas-notes',
     'Target: Forgejo 9.0',
     'Outcome: BLOCKED',
@@ -346,7 +347,7 @@ test('landing page has the required first screen and keyboard path', async ({ pa
   await page.goto('/');
   await expect(page).toHaveTitle('Git Forge Exit Drill — test a GitHub move');
   await expect(page.locator('h1')).toHaveCount(1);
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Test your GitHub exit before cutover');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Test your GitHub move before cutover');
   await expect(page.getByRole('link', { name: 'Try it with sample data' })).toBeVisible();
   await page.keyboard.press('Tab');
   await expect(page.getByRole('link', { name: 'Skip to main content' })).toBeFocused();
@@ -356,7 +357,7 @@ test('landing page has the required first screen and keyboard path', async ({ pa
 });
 
 test('required first-screen content fits common desktop viewports', async ({ page }) => {
-  for (const viewport of [{ width: 1280, height: 720 }, { width: 1366, height: 768 }]) {
+  for (const viewport of [{ width: 1280, height: 720 }, { width: 1366, height: 768 }, { width: 1440, height: 900 }]) {
     await page.setViewportSize(viewport);
     await page.goto('/');
     for (const locator of [
@@ -430,7 +431,7 @@ for (const route of ['/', '/demo', '/privacy', '/terms']) {
   });
 }
 
-test('license return, restore, and removal use the required browser key', async ({ page }) => {
+test('@claim:license-browser-storage license return, restore, and removal use the required browser key', async ({ page }) => {
   await page.route('https://api.sociobot.in/api/v1/products/git-forge-exit-drill/verify?license=returned-token', (route) => route.fulfill({ json: { valid: true, reason: 'ok', expires_at: null } }));
   await page.goto('/?license=returned-token');
   await expect.poll(() => page.evaluate(() => localStorage.getItem('sb_license:git-forge-exit-drill'))).toBe('returned-token');
@@ -451,6 +452,123 @@ test('unknown routes show a styled way home', async ({ page }) => {
 test('static deployment configuration reserves HTTP 404 for unknown routes', async () => {
   const config = JSON.parse(await readFile(join(process.cwd(), 'site/public/staticwebapp.config.json'), 'utf8'));
   expect(config.navigationFallback).toBeUndefined();
-  expect(config.routes.filter((route: { rewrite?: string }) => route.rewrite === '/index.html').map((route: { route: string }) => route.route)).toEqual(['/demo', '/privacy', '/terms']);
+  expect(config.routes.filter((route: { rewrite?: string }) => ['/demo/index.html', '/privacy/index.html', '/terms/index.html'].includes(route.rewrite ?? '')).map((route: { route: string }) => route.route)).toEqual(['/demo', '/privacy', '/terms']);
   expect(config.responseOverrides['404']).toEqual({ rewrite: '/404.html' });
+});
+
+test('@claim:cli-demo-isolated CLI demo prints isolated output paths and preserves non-empty output', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'gfed-demo-isolated-'));
+  const output = join(root, 'demo');
+  const { stdout } = await execFile(binary, ['demo', '--output', output]);
+  expect(stdout).toContain('Report:');
+  expect(stdout).toContain('Encrypted evidence:');
+  await expect(readFile(join(output, 'result', 'readiness.md'), 'utf8')).resolves.toContain('## Restore drill');
+  const occupied = join(root, 'occupied');
+  await mkdir(occupied);
+  await writeFile(join(occupied, 'sentinel.txt'), 'keep this');
+  await expect(execFile(binary, ['demo', '--output', occupied])).rejects.toMatchObject({ code: 1, stderr: expect.stringContaining('choose a new or empty directory') });
+  await expect(readFile(join(occupied, 'sentinel.txt'), 'utf8')).resolves.toBe('keep this');
+});
+
+test('@claim:target-mappings named target versions have each published support state', async () => {
+  const mapping = JSON.parse(await readFile(join(process.cwd(), 'mappings', 'targets.json'), 'utf8'));
+  expect(mapping.targets.map((target: { label: string }) => target.label)).toEqual(['Forgejo 9.0', 'Gitea 1.22', 'GitLab 17.0']);
+  for (const target of mapping.targets) {
+    const states = new Set(Object.values(target.capabilities).map((item: any) => item.status));
+    expect(states).toEqual(new Set(['native', 'manual', 'unsupported']));
+  }
+});
+
+test('@claim:restore-checklist local reports contain generated restore steps', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'gfed-restore-checklist-'));
+  await execFile(binary, ['drill', '--source', sample, '--target', 'forgejo:9.0', '--output', root], { env: { ...process.env, GFED_PASSPHRASE: 'browser claim passphrase' } });
+  const report = await readFile(join(root, 'readiness.md'), 'utf8');
+  expect(report).toContain('## Restore drill');
+  expect(report).toContain('Restore into a disposable target project');
+  expect(report).toContain('Compare the default branch and every tag');
+  expect(report).toContain('Run one build from a pinned commit');
+});
+
+test('@claim:output-boundary local drill writes only its declared output artifacts', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'gfed-output-boundary-'));
+  const source = join(root, 'source'); const output = join(root, 'output');
+  await mkdir(source); await writeFile(join(source, 'notes.txt'), 'source sentinel'); await writeFile(join(source, 'issues.json'), '[]');
+  await execFile(binary, ['drill', '--source', source, '--target', 'forgejo:9.0', '--output', output], { env: { ...process.env, GFED_PASSPHRASE: 'browser claim passphrase' } });
+  expect(await readFile(join(source, 'notes.txt'), 'utf8')).toBe('source sentinel');
+  for (const name of ['readiness.md', 'readiness.json', 'evidence.gfed']) await expect(readFile(join(output, name))).resolves.toBeTruthy();
+});
+
+test('@claim:linux-download production site output ships an executable versioned Linux binary', async () => {
+  const download = join(process.cwd(), 'dist', 'site', 'downloads', 'git-forge-exit-drill-linux-x86_64');
+  const { stdout } = await execFile(download, ['--version']);
+  expect(stdout).toContain('git-forge-exit-drill 0.1.0');
+});
+
+test('@claim:billing-contract Team Pack copy and checkout link state the published one-time purchase', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText('A $39 one-time purchase adds the portfolio command and one consolidated readiness report.')).toBeVisible();
+  await expect(page.getByRole('link', { name: /Buy Team Pack/ })).toHaveAttribute('href', 'https://api.sociobot.in/api/v1/products/git-forge-exit-drill/checkout');
+  await page.goto('/terms');
+  await expect(page.getByText('The Team Pack costs $39 once.')).toBeVisible();
+  await expect(page.getByText('Sociobot handles payment, receipts, and refunds.')).toBeVisible();
+});
+
+test('@claim:archive-file-completeness archive lists every regular nested source file with its digest', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'gfed-archive-files-'));
+  const source = join(root, 'source'); const output = join(root, 'output');
+  await mkdir(join(source, 'nested'), { recursive: true });
+  await writeFile(join(source, 'issues.json'), '[]'); await writeFile(join(source, 'empty.txt'), ''); await writeFile(join(source, 'nested', 'binary.bin'), Buffer.from([0, 1, 2, 255]));
+  await execFile(binary, ['drill', '--source', source, '--target', 'forgejo:9.0', '--output', output], { env: { ...process.env, GFED_PASSPHRASE: 'browser claim passphrase' } });
+  const { stdout } = await execFile(binary, ['--json', 'verify', join(output, 'evidence.gfed')], { env: { ...process.env, GFED_PASSPHRASE: 'browser claim passphrase' } });
+  const verified = JSON.parse(stdout) as { evidence_files: Array<{ path: string; sha256: string }> };
+  expect(verified.evidence_files.map((file) => file.path)).toEqual(['empty.txt', 'issues.json', 'nested/binary.bin']);
+  expect(verified.evidence_files.every((file) => /^[a-f0-9]{64}$/.test(file.sha256))).toBe(true);
+});
+
+test('@claim:api-metadata-blocks-git API metadata reports Git history as missing and blocks readiness', async () => {
+  const requests: string[] = [];
+  const server = createServer((request, response) => { requests.push(request.url ?? ''); response.setHeader('content-type', 'application/json'); if (request.url === '/repos/acme/api-only') response.end(JSON.stringify({ full_name: 'acme/api-only' })); else if (request.url?.includes('/actions/workflows')) response.end(JSON.stringify({ workflows: [] })); else if (request.url?.includes('/actions/runs')) response.end(JSON.stringify({ workflow_runs: [] })); else response.end('[]'); });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const address = server.address(); if (!address || typeof address === 'string') throw new Error('fixture did not start');
+  const output = await mkdtemp(join(tmpdir(), 'gfed-api-blocked-'));
+  try { await execFile(binary, ['drill', '--repo', 'acme/api-only', '--target', 'forgejo:9.0', '--output', output], { env: { ...process.env, GITHUB_TOKEN: 'api-fixture', GFED_PASSPHRASE: 'browser claim passphrase', GFED_GITHUB_API_BASE: `http://127.0.0.1:${address.port}` } }); } finally { server.close(); }
+  const report = JSON.parse(await readFile(join(output, 'readiness.json'), 'utf8'));
+  expect(report.outcome).toBe('blocked');
+  expect(report.findings.find((finding: { artifact: string }) => finding.artifact === 'git_repository')).toMatchObject({ captured: false, result: 'missing evidence' });
+  expect(report.unavailable.git_repository).toContain('metadata only');
+  expect(requests.join('\n')).not.toContain('git/objects');
+});
+
+test('@claim:json-summary successful --json output is parseable and contains command paths', async () => {
+  const output = await mkdtemp(join(tmpdir(), 'gfed-json-summary-'));
+  const { stdout } = await execFile(binary, ['--json', 'drill', '--source', sample, '--target', 'forgejo:9.0', '--output', output], { env: { ...process.env, GFED_PASSPHRASE: 'browser claim passphrase' } });
+  const result = JSON.parse(stdout);
+  expect(result.repository).toBe('acme-labs/atlas-notes'); expect(result.markdown_report).toContain('readiness.md'); expect(result.evidence_archive).toContain('evidence.gfed');
+});
+
+test('@claim:actionable-errors documented setup errors exit non-zero with one next step', async () => {
+  const missing = await mkdtemp(join(tmpdir(), 'gfed-missing-source-'));
+  await expect(execFile(binary, ['drill', '--source', join(missing, 'missing'), '--target', 'forgejo:9.0'], { env: { ...process.env, GFED_PASSPHRASE: 'browser claim passphrase' } })).rejects.toMatchObject({ code: 1, stderr: expect.stringContaining('check --source and try again') });
+  await expect(execFile(binary, ['drill', '--source', sample, '--target', 'forgejo:9.0'], { env: { ...process.env, GFED_PASSPHRASE: 'short' } })).rejects.toMatchObject({ code: 1, stderr: expect.stringContaining('set a longer value and try again') });
+});
+
+test('@claim:cli-network-boundaries local work avoids the network while the license fixture receives only its configured call', async () => {
+  const localOutput = await mkdtemp(join(tmpdir(), 'gfed-network-local-'));
+  await execFile(binary, ['drill', '--source', sample, '--target', 'forgejo:9.0', '--output', localOutput], { env: { ...process.env, GFED_PASSPHRASE: 'browser claim passphrase', HTTP_PROXY: 'http://127.0.0.1:1', HTTPS_PROXY: 'http://127.0.0.1:1', NO_PROXY: '' } });
+  const calls: string[] = []; const billing = createServer((request, response) => { calls.push(request.url ?? ''); response.setHeader('content-type', 'application/json'); response.end(JSON.stringify({ valid: true, reason: 'ok' })); });
+  await new Promise<void>((resolve) => billing.listen(0, '127.0.0.1', resolve)); const address = billing.address(); if (!address || typeof address === 'string') throw new Error('billing fixture did not start');
+  const root = await mkdtemp(join(tmpdir(), 'gfed-network-license-'));
+  try { await execFile(binary, ['portfolio', '--source', sample, '--target', 'forgejo:9.0', '--output', join(root, 'portfolio')], { env: { ...process.env, GFED_PASSPHRASE: 'browser claim passphrase', GFED_LICENSE: 'fixture-license', GFED_BILLING_BASE: `http://127.0.0.1:${address.port}`, XDG_CONFIG_HOME: join(root, 'config') } }); } finally { billing.close(); }
+  expect(calls).toEqual(['/api/v1/products/git-forge-exit-drill/verify?license=fixture-license']);
+});
+
+test('built deep-link documents have route-specific source metadata', async () => {
+  for (const [path, title, canonical] of [['demo', 'Demo — Git Forge Exit Drill', 'https://git-forge-exit-drill.sociobot.in/demo'], ['privacy', 'Privacy — Git Forge Exit Drill', 'https://git-forge-exit-drill.sociobot.in/privacy'], ['terms', 'Terms — Git Forge Exit Drill', 'https://git-forge-exit-drill.sociobot.in/terms']]) {
+    const html = await readFile(join(process.cwd(), 'dist', 'site', path, 'index.html'), 'utf8');
+    expect(html).toContain(`<title>${title}</title>`); expect(html).toContain(`canonical" href="${canonical}"`); expect(html).toContain(`og:url" content="${canonical}"`);
+  }
+});
+
+test('browser Back restores focus to the install heading', async ({ page }) => {
+  await page.goto('/'); await page.getByRole('link', { name: 'Install' }).click(); await page.getByRole('link', { name: 'Try it with sample data' }).click(); await page.goBack(); await expect(page.locator('#install-title')).toBeFocused();
 });

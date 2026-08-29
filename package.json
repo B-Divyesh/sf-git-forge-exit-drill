@@ -9,6 +9,7 @@
     "build": "cargo build --release && npm run build:site && node scripts/copy-binary.mjs",
     "preview": "vite preview --config site/vite.config.ts --host 127.0.0.1",
     "typecheck": "tsc --noEmit",
+    "audit:copy": "node scripts/check-copy-audit.mjs",
     "test:rust": "cargo test",
     "test": "npm run test:rust && npm run build:site && playwright test"
   },

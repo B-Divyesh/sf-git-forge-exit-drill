@@ -8,7 +8,7 @@ type Route = '/' | '/demo' | '/privacy' | '/terms' | '/404';
 
 const terminalLines = [
   { kind: 'command', text: '$ git-forge-exit-drill demo' },
-  { kind: 'muted', text: 'Demo — sample data, nothing was read from your workspace.' },
+  { kind: 'muted', text: 'Demo — sample data. No workspace files were read.' },
   { kind: 'plain', text: 'Repository: acme-labs/atlas-notes' },
   { kind: 'plain', text: 'Target: Forgejo 9.0' },
   { kind: 'danger', text: 'Outcome: BLOCKED' },
@@ -46,58 +46,58 @@ function home(): string {
   return `${header()}<main id="main">
     <section class="hero" aria-labelledby="page-title">
       <div class="hero-copy">
-        <p class="eyebrow">Migration readiness / CLI</p>
-        <h1 id="page-title" tabindex="-1">Test your GitHub exit before cutover</h1>
-        <p class="lede">For small teams moving forges, it finds missing history and build evidence before Monday.</p>
+        <p class="eyebrow">Git host migration check</p>
+        <h1 id="page-title" tabindex="-1">Test your GitHub move before cutover</h1>
+        <p class="lede">For small teams changing Git hosts, it finds missing repository history and build evidence before cutover.</p>
         <div class="hero-action"><a class="button primary" href="/demo" data-link>Try it with sample data</a><p>See a complete drill with no setup.</p></div>
         <ul class="facts" aria-label="Product facts">
-          <li><span aria-hidden="true">01</span> Local exports stay on your machine.</li>
-          <li><span aria-hidden="true">02</span> No account is needed.</li>
+          <li><span aria-hidden="true">01</span> Local drills need no network connection.</li>
+          <li><span aria-hidden="true">02</span> Sample data stays in demo storage.</li>
           <li><span aria-hidden="true">03</span> One-repository drills are free.</li>
         </ul>
       </div>
       <figure class="hero-art">
-        <img src="/geometry-exit-drill.webp" width="1100" height="733" alt="A tangled artifact graph crosses a boundary and becomes a checked geometric grid." fetchpriority="high" />
-        <figcaption>Source artifacts cross the forge boundary. Gaps stay visible.</figcaption>
+        <img src="/geometry-exit-drill.webp" width="1100" height="733" alt="A GitHub repository-item graph maps to a checked target grid with unsupported items marked." fetchpriority="high" />
+        <figcaption>The drill maps each GitHub repository item to the target and marks unsupported items.</figcaption>
       </figure>
     </section>
 
     <section class="preview ruled" aria-labelledby="preview-title">
-      <div class="section-index">FIELD TEST / 001</div>
-      <div><h2 id="preview-title">See the gap before it becomes downtime</h2><p>The sample repository has code, issues, releases, and build history. It marks a count captured only when valid records back it.</p></div>
+      <div class="section-index">Sample result</div>
+      <div><h2 id="preview-title">Sample drill results</h2><p>The sample repository has code, issues, releases, and build history. The drill counts an item only after it validates exported records.</p></div>
       ${terminal(true)}
     </section>
 
     <section class="how" aria-labelledby="how-title">
-      <div class="section-index">METHOD / 003</div>
+      <div class="section-index">How it works</div>
       <h2 id="how-title">Run one repeatable drill</h2>
       <ol class="steps">
         <li><span>01</span><div><h3>Inventory the source</h3><p>Read an extracted export or an authorized GitHub API repository.</p></div></li>
-        <li><span>02</span><div><h3>Map the target</h3><p>Compare each artifact with a versioned GitLab, Gitea, or Forgejo map.</p></div></li>
-        <li><span>03</span><div><h3>Prove the restore</h3><p>Keep encrypted evidence, then follow the generated restore checklist.</p></div></li>
+        <li><span>02</span><div><h3>Map the target</h3><p>Compare each repository item with GitLab, Gitea, or Forgejo version maps.</p></div></li>
+        <li><span>03</span><div><h3>Plan the restore test</h3><p>Keep encrypted evidence and use the generated restore checklist.</p></div></li>
       </ol>
     </section>
 
     <section class="install ruled" id="install" aria-labelledby="install-title">
-      <div class="section-index">TERMINAL / START</div>
-      <div><h2 id="install-title">Start with the bundled sample</h2><p>Build from source, then run the same sample used in this page.</p></div>
+      <div class="section-index">Install</div>
+      <div><h2 id="install-title" tabindex="-1">Start with the bundled sample</h2><p>Build from source, then run the sample shown on this page.</p></div>
       <div class="code-block"><code>cargo install --path .<br />git-forge-exit-drill demo</code><button class="copy-button" data-copy="cargo install --path .\ngit-forge-exit-drill demo">Copy commands</button></div>
       <a class="text-link" href="/downloads/git-forge-exit-drill-linux-x86_64" download>Download Linux x86-64 binary <span aria-hidden="true">↓</span></a>
     </section>
 
     <section class="boundaries" aria-labelledby="boundaries-title">
-      <div class="section-index">BOUNDARY / CLEAR</div>
-      <div><h2 id="boundaries-title">Know what stays untouched</h2><p>The CLI does not cut over repositories, forward webhooks, or host a forge. It reads only the source you provide.</p><a class="text-link" href="/privacy" data-link>Read the privacy details <span aria-hidden="true">→</span></a></div>
-      <div class="boundary-list"><p><span>NO</span> Automatic migration</p><p><span>NO</span> Background service</p><p><span>NO</span> Telemetry</p></div>
+      <div class="section-index">Limits</div>
+      <div><h2 id="boundaries-title">Know what the CLI writes</h2><p>The CLI writes reports and an evidence archive to the output directory. It does not change your selected export.</p><a class="text-link" href="/privacy" data-link>Read the privacy details <span aria-hidden="true">→</span></a></div>
+      <div class="boundary-list"><p><span>NO</span> Automatic migration</p><p><span>NO</span> Background service</p><p><span>NO</span> Site telemetry</p></div>
     </section>
 
     <section class="pricing ruled" aria-labelledby="pricing-title">
-      <div class="section-index">TEAM PACK / $39</div>
-      <div><h2 id="pricing-title">Check ten repositories together</h2><p>One $39 purchase adds the portfolio command and one ordered risk list. The complete one-repository drill stays free.</p><ul><li>Up to ten local exports per run</li><li>One consolidated Markdown report</li><li>License use on your own devices</li></ul></div>
+      <div class="section-index">Team Pack</div>
+      <div><h2 id="pricing-title">Check ten repositories together</h2><p>A $39 one-time purchase adds the portfolio command and one consolidated readiness report. The one-repository drill stays free.</p><ul><li>Up to ten local exports per run</li><li>One consolidated readiness report in Markdown</li></ul></div>
       <div class="purchase">
         <a class="button primary" href="${BILLING}/api/v1/products/${PRODUCT}/checkout">Buy Team Pack — $39 <span aria-label="(hosted checkout)">↗</span></a>
-        <p>One-time purchase. Sociobot is the merchant of record.</p>
-        <button class="button secondary" type="button" data-show-license>Have a license? Paste it</button>
+        <p>You buy from Sociobot, which handles payment and receipts.</p>
+        <button class="button secondary" type="button" data-show-license>Enter Team Pack license</button>
         <form class="license-form" hidden>
           <label for="license-token">License token</label>
           <input id="license-token" name="license" type="password" autocomplete="off" required />
@@ -115,21 +115,21 @@ function demo(): string {
   ${header()}<main id="main" class="page-shell demo-page">
     <p class="eyebrow">Bundled sample / no setup</p>
     <h1 id="page-title" tabindex="-1">See a complete exit drill</h1>
-    <p class="lede">This recording comes from the real CLI and its bundled Atlas Notes export.</p>
+    <p class="lede">This recording matches the bundled CLI and Atlas Notes sample export.</p>
     ${terminal()}
     <section class="demo-findings" aria-labelledby="finding-title">
       <div><p class="outcome"><span>BLOCKED</span> Cutover should wait</p><h2 id="finding-title">The report found critical risks</h2><p>Past Actions runs cannot become native Forgejo history. The report also asks for missing export evidence before cutover.</p></div>
       <ol><li><span>01</span>Save old build logs and artifact checksums.</li><li><span>02</span>Recreate secrets through the target’s secure process.</li><li><span>03</span>Run one build from a pinned commit.</li></ol>
     </section>
-    <div class="demo-next"><a class="button primary" href="/#install" data-real>Run your own drill</a><p>The CLI reads your export locally.</p></div>
+    <div class="demo-next"><a class="button primary" href="/#install" data-real>Run your own drill</a><p>Run the CLI against a local export.</p></div>
   </main>${footer()}`;
 }
 
 function privacy(): string {
-  return `${header()}<main id="main" class="page-shell legal-page"><p class="eyebrow">Policy / 2026.08.28</p><h1 id="page-title" tabindex="-1">Keep repository evidence private</h1>
+  return `${header()}<main id="main" class="page-shell legal-page"><p class="eyebrow">Privacy</p><h1 id="page-title" tabindex="-1">Keep repository evidence private</h1>
     <p class="lede">The CLI works from your computer. This site does not receive repository exports.</p>
     <h2>Data the CLI handles</h2><p>Local mode reads the export directory you choose. It writes reports and an encrypted archive to your chosen output directory.</p>
-    <h2>Network requests</h2><p>Local drills make no network requests. API drills contact GitHub with the token environment variable you name. Portfolio license checks contact the Sociobot billing API.</p>
+    <h2>Network requests</h2><p>Local drills make no network requests. API drills contact the GitHub API origin you configure. Portfolio license checks contact the Sociobot billing API.</p>
     <h2>License storage</h2><p>This site stores a pasted license in your browser under <code>sb_license:${PRODUCT}</code>. It stores the last verdict for one day. You can remove both items with the button below.</p>
     <button class="button secondary" type="button" data-clear-license>Remove saved license</button><p class="license-status" role="status" aria-live="polite"></p>
     <h2>Payments</h2><p>Sociobot and Dodo handle checkout, receipts, refunds, and payment data. This site never receives card details.</p>
@@ -138,11 +138,11 @@ function privacy(): string {
 }
 
 function terms(): string {
-  return `${header()}<main id="main" class="page-shell legal-page"><p class="eyebrow">Terms / 2026.08.28</p><h1 id="page-title" tabindex="-1">Use the drill before you cut over</h1>
+  return `${header()}<main id="main" class="page-shell legal-page"><p class="eyebrow">Terms</p><h1 id="page-title" tabindex="-1">Use the drill before you cut over</h1>
     <p class="lede">These terms cover the CLI, this site, and the Team Pack license.</p>
-    <h2>Your responsibility</h2><p>Use only exports, repositories, and tokens you are allowed to access. Review every finding before changing a production forge.</p>
-    <h2>What the report means</h2><p>Capability maps are planning baselines for named target versions. Forge settings and importers change. A report does not guarantee a complete migration.</p>
-    <h2>Team Pack</h2><p>The Team Pack costs $39 once. It adds portfolio reports for up to ten repositories per run. Sociobot is the merchant of record. Approved refunds revoke the license.</p>
+    <h2>Your responsibility</h2><p>Use only exports, repositories, and tokens you are allowed to access. Review every finding before changing a production Git host.</p>
+    <h2>What the report means</h2><p>Capability maps are planning baselines for named target versions. Git-host settings and importers change. A report does not guarantee a complete migration.</p>
+    <h2>Team Pack</h2><p>The Team Pack costs $39 once. It adds portfolio reports for up to ten repositories per run. Sociobot handles payment, receipts, and refunds. Approved refunds revoke the license.</p>
     <h2>No warranty</h2><p>The software is provided under the MIT License without warranty. Keep independent backups before every migration or restore test.</p>
     <h2>Contact</h2><p>Email <a href="mailto:support@sociobot.in">support@sociobot.in</a> for purchase help.</p>
   </main>${footer()}`;
@@ -166,7 +166,7 @@ const metadata: Record<Route, { title: string; description: string }> = {
   '/404': { title: 'Page not found — Git Forge Exit Drill', description: 'Return to the Git Forge Exit Drill home page.' },
 };
 
-function render(moveFocus = true): void {
+function render(moveFocus = true, restoreHash = false): void {
   const route = currentRoute();
   if (route !== '/demo') localStorage.removeItem('demo:gfed:started');
   if (route === '/demo') localStorage.setItem('demo:gfed:started', String(Date.now()));
@@ -176,9 +176,23 @@ function render(moveFocus = true): void {
   document.querySelector<HTMLLinkElement>('link[rel="canonical"]')!.href = `https://git-forge-exit-drill.sociobot.in${route === '/404' ? '/404' : route}`;
   bindActions();
   if (moveFocus) {
-    window.scrollTo({ top: 0 });
-    document.querySelector<HTMLElement>('h1')?.focus({ preventScroll: true });
-    announce(document.querySelector('h1')?.textContent ?? 'Page loaded');
+    const destination = restoreHash && window.location.hash
+      ? document.querySelector<HTMLElement>(window.location.hash)
+      : null;
+    if (destination) {
+      destination.scrollIntoView();
+      const focusTarget = destination.matches('[tabindex]')
+        ? destination
+        : destination.querySelector<HTMLElement>('[tabindex], h1, h2, h3') ?? destination;
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        focusTarget.focus({ preventScroll: true });
+        announce(focusTarget.textContent ?? 'Section loaded');
+      }));
+    } else {
+      window.scrollTo({ top: 0 });
+      document.querySelector<HTMLElement>('h1')?.focus({ preventScroll: true });
+      announce(document.querySelector('h1')?.textContent ?? 'Page loaded');
+    }
   }
 }
 
@@ -218,8 +232,7 @@ function navigate(event: Event): void {
   event.preventDefault();
   const next = `${link.pathname}${link.search}${link.hash}`;
   history.pushState({}, '', next);
-  render();
-  if (link.hash) requestAnimationFrame(() => document.querySelector(link.hash)?.scrollIntoView());
+  render(true, Boolean(link.hash));
 }
 
 async function submitLicense(event: SubmitEvent): Promise<void> {
@@ -280,7 +293,16 @@ function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[character]!);
 }
 
-window.addEventListener('popstate', () => render());
+function normalizeDemoQuery(): void {
+  const params = new URLSearchParams(window.location.search);
+  if (window.location.pathname === '/' && params.get('demo') === '1') {
+    params.delete('demo');
+    history.replaceState({}, '', `/demo${params.size ? `?${params}` : ''}${window.location.hash}`);
+  }
+}
+
+normalizeDemoQuery();
+window.addEventListener('popstate', () => render(true, true));
 render(false);
 if (currentRoute() !== '/demo') {
   acceptReturnedLicense();

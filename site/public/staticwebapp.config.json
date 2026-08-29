@@ -14,15 +14,15 @@
     },
     {
       "route": "/demo",
-      "rewrite": "/index.html"
+      "rewrite": "/demo/index.html"
     },
     {
       "route": "/privacy",
-      "rewrite": "/index.html"
+      "rewrite": "/privacy/index.html"
     },
     {
       "route": "/terms",
-      "rewrite": "/index.html"
+      "rewrite": "/terms/index.html"
     }
   ],
   "responseOverrides": {
