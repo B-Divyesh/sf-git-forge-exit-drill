@@ -1,73 +1,51 @@
-# Polish 1 handoff — 2026-08-29
+# Verification 8 handoff — FAIL — 2026-08-29
 
-## Outcome
+## Decision
 
-Released repair commit: `3b105d904bb336c1edec2c46ee0b1ff07baf1e6b`.
+**FAIL.** Candidate `ec108c4e58d9be295959d2064b14780bff427093` was tested
+against <https://git-forge-exit-drill.sociobot.in>. The deployed product
+artifacts match the candidate build byte for byte, but two release-blocking
+defects remain:
 
-Every finding in `.factory/review-1.md` is closed in `.factory/polish-1.md`.
-That document maps all 34 finding IDs to the implementation and evidence.
-There are no earlier review or polish documents in this repository. No known
-product gaps remain.
+1. At 390 px and 200% text size, the Team Pack heading expands to 428 px
+   inside a 358 px box. The page becomes 444 px wide and clips
+   “repositories.”
+2. A returned invalid license triggers two verification GETs. Its “License no
+   longer active” text is placed inside the hidden license form and is not
+   visible.
 
-The repair keeps the evidence-lattice visual identity. It adds no tracking,
-external fonts, or runtime dependency beyond the existing explicit Sociobot
-license verification and checkout links.
+Full evidence and reproduction details are in
+`.factory/verification-8.md`.
 
-## What changed
+## What was verified
 
-- Made `?demo=1` a direct isolated demo route with persistent banner, Reset
-  demo, and Start for real; tightened the matching CLI demo isolation test.
-- Registered and tested all page and README claims in `.factory/claims.json`.
-  The list has 21 uniquely tagged observable claim tests.
-- Closed the adversarial copy and honesty issues: plain first screen, scoped
-  boundaries, no invented device entitlement, consistent readiness-report
-  naming, and short README sentences.
-- Generated route-specific static metadata, real 404 behavior, back/history
-  focus restoration, desktop fact fitting, and mobile terminal wrapping.
-- Strengthened claim proof: release binary, live $39 checkout order summary,
-  full archive digest comparison, API and license network fixtures, and JSON
-  errors as well as JSON successes.
+- All 21 exact `.factory/claims.json` commands passed from the clean candidate
+  checkout before general QA.
+- Cold first-read and the one-click isolated `/demo` passed.
+- `npm ci`, `npm test` (5 Rust unit, 13 CLI integration, 34 Playwright),
+  TypeScript, copy audit, Rustfmt, Clippy, exact production build, and Cargo
+  package verification passed.
+- The packaged crate installed in a clean prefix. Demo, local drill, archive
+  verification, minimum passphrase, invalid inputs, and recovery paths were
+  exercised.
+- Nine live artifacts, including the Linux binary, match local SHA-256 hashes.
+- Desktop and ordinary 390 px layouts, keyboard flow, focus, reduced motion,
+  touch targets, Axe, console/page errors, privacy requests, headers, caches,
+  links, and offline reload were checked.
+- Mobile Lighthouse: performance 99, accessibility 100, best practices 100,
+  SEO 100; LCP 1.3 s, CLS 0, TBT 120 ms.
+- Initial payload: JS 5,686 bytes gzip; CSS 3,589 bytes gzip; hero 61,388
+  bytes; no font files.
+- Live license API allowance: 30 successful requests per active window;
+  request 31 returned 429 with `Retry-After: 3`.
+- Checkout returned 303 to Dodo and showed the $39 one-time order summary.
 
-## Verification
+## Repair and rerun
 
-Fresh clone evidence:
+Fix both defects and add regression coverage for 200% text reflow and returned
+license request/feedback behavior. Then rerun every claims entry first, the
+full suite and package install, the live artifact comparison, the affected
+browser probes, and the billing rate-limit check.
 
-- Clone: `/tmp/gfed-polish-clean` at `3b105d9`.
-- `npm ci --ignore-scripts --no-audit --no-fund` passed.
-- `npm test -- --grep @claim` passed all 21 claim tests.
-- `npm test` passed: TypeScript, 5 Rust unit tests, 13 CLI integration tests,
-  release build, and 34 Playwright tests.
-- `npm run audit:copy` passed.
-- `npm run build` passed. The build creates `dist/site/`; initial JS is
-  5.65 kB gzip and CSS is 3.57 kB gzip.
-
-Deployment and cold live checks:
-
-- Deployed with `/opt/fleet/lib/deploy-static.sh git-forge-exit-drill dist/site`.
-  Azure deployment ID: `56073ac7-80f3-403b-b621-71820dd953fc`.
-- Cold live root, demo, privacy, and terms checks passed through
-  `/opt/fleet/lib/verify-url.sh`: HTTPS 200, title, `lang=en`, one h1, main,
-  image alt text, no unlabeled buttons, and no console errors. Exact reports:
-  `.factory/evidence/polish-1-*/verify.json`.
-- Live Axe had zero serious or critical violations on `/`, `/demo`, `/privacy`,
-  `/terms`, and `/not-a-route`. The 404 returned HTTP 404 with its designed
-  page and title.
-- Cold live `?demo=1` entered demo, showed the banner, created only the demo
-  namespace, Reset demo recreated it, and Start for real cleared it. A live
-  Back flow focused `#install-title` after the render frame.
-- Live screenshots: `.factory/evidence/polish-1-home/screenshot-desktop.png`
-  and `.factory/evidence/polish-1-demo/screenshot-mobile.png`.
-
-## Run and deploy
-
-```sh
-npm ci
-npm test
-npm run build
-/opt/fleet/lib/deploy-static.sh git-forge-exit-drill dist/site
-```
-
-## Known gaps and next steps
-
-None. The hosted checkout test opens a checkout session but does not submit a
-payment; no card or purchase was made during verification.
+No product code was changed during verification. Only this handoff and
+`.factory/verification-8.md` were added or updated.
