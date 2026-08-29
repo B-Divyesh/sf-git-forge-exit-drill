@@ -94,8 +94,24 @@ Static deployment uses the work-order configuration:
 /opt/fleet/lib/deploy-static.sh git-forge-exit-drill dist/site
 ```
 
-Deployment identity and live endpoint evidence will be appended after the
-committed repair is pushed and deployed.
+- Code repair commit `9a56fdf675752d0d2a03f1d957c25d70817425de` was pushed to
+  `origin/main` before deployment.
+- Azure Static Web Apps deployment `fc2ad30b-b827-407d-b7ca-07271aaa7b90`
+  completed successfully at `https://git-forge-exit-drill.sociobot.in`.
+- The factory verifier passed live `/`, `/demo`, `/privacy`, and `/terms`.
+  Each returned 200 with no browser errors; `/missing` returns 404.
+- Live headers include HSTS, `nosniff`, strict-origin referrer policy,
+  restrictive permissions policy, and the expected CSP with response-header
+  `frame-ancestors 'none'`.
+- Deployment identity is exact: live `index.html` SHA-256 is
+  `21cadaf9a043c45ffee32a5012f571dfcc3ad8a24698f63f12f10884f6ee56cf`,
+  matching `dist/site/index.html`; live app JS SHA-256 is
+  `2c219ad028a15b625bc9ec0762eb50dfd227aa963550dcc9da92ef7fdc1863c5`,
+  matching the built asset.
+- A live browser fixture confirmed the returned-license URL is stripped, the
+  token stays masked rather than page text, **Copy setup command** returns the
+  correct `GFED_LICENSE` export, malformed cache recovery works, and mobile
+  demo reset preserves keyboard focus.
 
 ## Known gaps / next steps
 
