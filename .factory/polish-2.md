@@ -51,5 +51,6 @@ screenshots are recorded in the handoff after deployment.
 
 ## Evidence artifacts
 
-- Local screenshots: `.factory/evidence/polish-2/` (home, demo, privacy, and terms at desktop and 390 px).
-- Live recheck: `https://git-forge-exit-drill.sociobot.in/`, `/demo`, `/privacy`, `/terms`, and an unknown route after the deployment recorded in `handoff.md`.
+- Local screenshots: `.factory/evidence/polish-2/{home,demo,privacy,terms}-{desktop,mobile}.png`.
+- Live screenshots and verifier records: `.factory/evidence/polish-2/live/{home,demo,privacy,terms}/`.
+- Live recheck: `https://git-forge-exit-drill.sociobot.in/`, `/demo`, `/privacy`, `/terms`, and `/not-a-route` after deployment `845ccaa0-84e3-4b4f-a432-6a10504012b9`.
