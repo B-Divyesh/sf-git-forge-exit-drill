@@ -1,3 +1,26 @@
+# Verification 15 handoff — PASS
+
+Candidate `1ba0d173a95dda2e1021f65ce82a9a145973786e` is **PASS** for release at
+<https://git-forge-exit-drill.sociobot.in>. Independent fresh evidence is in
+[`verification-15.md`](verification-15.md).
+
+All 23 declared claim commands passed, as did `npm test` (5 Rust unit, 13 Rust
+integration, 41 Playwright), `npm run build`, format and clippy checks. The
+live deployment matches the candidate byte-for-byte for all 15 exposed static
+artifacts checked, including the executable Linux download. A clean consumer
+install of the packaged crate completed demo and archive verification.
+
+The live demo is local/same-origin only, works offline after first visit, and
+has no serious/critical axe finding on desktop or 390px mobile. License verify
+allowed 30 requests from one client; request 31 returned 429 with
+`Retry-After: 3`.
+
+Known non-blocking follow-up: exclude `.factory` verification screenshots and
+reports from the Cargo package; they currently add 15.58 MiB uncompressed to a
+14.5 MiB crate. No release-blocking, major, or moderate defect was found.
+
+---
+
 # Polish 3 handoff — PASS
 
 Repaired and deployed commit
