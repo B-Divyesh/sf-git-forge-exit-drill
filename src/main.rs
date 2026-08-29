@@ -5,7 +5,13 @@ use git_forge_exit_drill::{
     read_encrypted_archive, run_drill, verify_team_license, write_portfolio,
 };
 use serde::Serialize;
-use std::{env, fs, path::PathBuf, process::ExitCode};
+use std::{
+    env,
+    ffi::OsStr,
+    fs,
+    path::{Path, PathBuf},
+    process::ExitCode,
+};
 
 #[derive(Parser)]
 #[command(
@@ -35,7 +41,7 @@ enum Command {
         /// Target mapping, such as forgejo:9.0, gitea:1.22, or gitlab:17.0.
         #[arg(long)]
         target: String,
-        /// New or existing directory for evidence.gfed and readiness reports.
+        /// New or existing directory for evidence.gfed and readiness reports. Must be outside --source.
         #[arg(long, default_value = "exit-drill-output")]
         output: PathBuf,
         /// Environment variable that holds the read-only GitHub token.
@@ -85,7 +91,24 @@ enum Command {
 }
 
 fn main() -> ExitCode {
-    let cli = Cli::parse();
+    let requested_json = env::args_os().any(|argument| argument == OsStr::new("--json"));
+    let cli = match Cli::try_parse() {
+        Ok(cli) => cli,
+        Err(error) => {
+            if requested_json && error.exit_code() != 0 {
+                println!(
+                    "{}",
+                    serde_json::json!({
+                        "error": error.to_string().trim(),
+                        "ok": false,
+                    })
+                );
+            } else {
+                let _ = error.print();
+            }
+            return ExitCode::from(error.exit_code() as u8);
+        }
+    };
     let json = cli.json;
     match execute(cli) {
         Ok(()) => ExitCode::SUCCESS,
@@ -118,7 +141,11 @@ fn execute(cli: Cli) -> Result<()> {
         } => {
             let passphrase = required_secret(&passphrase_env, "archive passphrase")?;
             let (inventory, evidence) = match (source, repo) {
-                (Some(path), None) => inventory_local(&path)?,
+                (Some(path), None) => {
+                    let inventory = inventory_local(&path)?;
+                    validate_output_outside_source(&path, &output)?;
+                    inventory
+                }
                 (None, Some(repository)) => {
                     let token = required_secret(&token_env, "GitHub token")?;
                     inventory_github(&repository, &token)?
@@ -276,6 +303,9 @@ fn execute(cli: Cli) -> Result<()> {
                     sources.len() - 10
                 );
             }
+            for source in &sources {
+                validate_output_outside_source(source, &output)?;
+            }
             let license = required_secret(&license_env, "Team Pack license")?;
             verify_team_license(&license)?;
             let passphrase = required_secret(&passphrase_env, "archive passphrase")?;
@@ -306,6 +336,76 @@ fn execute(cli: Cli) -> Result<()> {
         }
     }
     Ok(())
+}
+
+fn validate_output_outside_source(source: &Path, output: &Path) -> Result<()> {
+    let source = fs::canonicalize(source).with_context(|| {
+        format!(
+            "could not resolve source '{}'; check --source and try again",
+            source.display()
+        )
+    })?;
+    let output = resolve_path_for_boundary(output)?;
+    if output.starts_with(&source) {
+        bail!(
+            "output '{}' is inside selected source '{}'; choose an output directory outside the export so the source stays read-only",
+            output.display(),
+            source.display()
+        );
+    }
+    Ok(())
+}
+
+fn resolve_path_for_boundary(path: &Path) -> Result<PathBuf> {
+    let absolute = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        env::current_dir()
+            .context("could not determine the current directory")?
+            .join(path)
+    };
+    let normalized = normalize_path(&absolute);
+    let mut existing = normalized.clone();
+    let mut unresolved = Vec::new();
+    while !existing.exists() {
+        let component = existing.file_name().ok_or_else(|| {
+            anyhow::anyhow!(
+                "could not resolve output path '{}'; choose another directory",
+                path.display()
+            )
+        })?;
+        unresolved.push(component.to_os_string());
+        if !existing.pop() {
+            bail!(
+                "could not resolve output path '{}'; choose another directory",
+                path.display()
+            );
+        }
+    }
+    let mut resolved = fs::canonicalize(&existing).with_context(|| {
+        format!(
+            "could not resolve output path '{}'; choose another directory",
+            path.display()
+        )
+    })?;
+    for component in unresolved.iter().rev() {
+        resolved.push(component);
+    }
+    Ok(resolved)
+}
+
+fn normalize_path(path: &Path) -> PathBuf {
+    let mut normalized = PathBuf::new();
+    for component in path.components() {
+        match component {
+            std::path::Component::CurDir => {}
+            std::path::Component::ParentDir => {
+                normalized.pop();
+            }
+            _ => normalized.push(component.as_os_str()),
+        }
+    }
+    normalized
 }
 
 fn required_secret(variable: &str, description: &str) -> Result<String> {

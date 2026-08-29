@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import { execFile as execFileCallback } from 'node:child_process';
 import { createServer } from 'node:http';
-import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -22,6 +22,16 @@ async function installCleanCli(root: string): Promise<string> {
     env: { ...process.env, CARGO_TARGET_DIR: join(process.cwd(), 'target') },
   });
   return join(installation, 'bin', 'git-forge-exit-drill');
+}
+
+async function snapshotTree(root: string, relative = ''): Promise<Record<string, string>> {
+  const snapshot: Record<string, string> = {};
+  for (const entry of await readdir(join(root, relative), { withFileTypes: true })) {
+    const child = join(relative, entry.name);
+    if (entry.isDirectory()) Object.assign(snapshot, await snapshotTree(root, child));
+    if (entry.isFile()) snapshot[child] = (await readFile(join(root, child))).toString('base64');
+  }
+  return snapshot;
 }
 
 test('@claim:demo-private sample demo is immediate and same-origin only', async ({ page }) => {
@@ -242,15 +252,26 @@ test('@claim:free-single one-repository drill runs without a license or network'
   expect(report.findings.find((finding: { artifact: string }) => finding.artifact === 'issues').target_support).toBe('native');
 });
 
-test('@claim:source-read-only a local drill leaves its selected source unchanged', async () => {
+test('@claim:source-read-only local drills preserve the complete source tree and reject overlapping outputs', async () => {
   const root = await mkdtemp(join(tmpdir(), 'gfed-source-'));
+  const source = join(root, 'source');
   const output = join(root, 'result');
-  const before = await readFile(join(sample, 'issues.json'));
-  await execFile(binary, ['drill', '--source', sample, '--target', 'gitea:1.22', '--output', output], {
+  await cp(sample, source, { recursive: true });
+  const before = await snapshotTree(source);
+  await execFile(binary, ['drill', '--source', source, '--target', 'gitea:1.22', '--output', output], {
     env: { ...process.env, GFED_PASSPHRASE: 'browser claim passphrase' },
   });
-  expect(await readFile(join(sample, 'issues.json'))).toEqual(before);
+  expect(await snapshotTree(source)).toEqual(before);
   expect(await readFile(join(output, 'readiness.json'), 'utf8')).toContain('acme-labs/atlas-notes');
+  for (const overlappingOutput of [source, join(source, 'exit-drill-output')]) {
+    await expect(execFile(binary, ['drill', '--source', source, '--target', 'gitea:1.22', '--output', overlappingOutput], {
+      env: { ...process.env, GFED_PASSPHRASE: 'browser claim passphrase' },
+    })).rejects.toMatchObject({
+      code: 1,
+      stderr: expect.stringContaining('choose an output directory outside the export'),
+    });
+    expect(await snapshotTree(source)).toEqual(before);
+  }
 });
 
 test('@claim:encrypted-evidence archive hides source text and verifies', async () => {
@@ -383,6 +404,23 @@ test('landing page has the required first screen and keyboard path', async ({ pa
   await page.getByRole('link', { name: 'Try it with sample data' }).click();
   await expect(page).toHaveURL(/\/demo$/);
   await expect(page.locator('h1')).toBeFocused();
+});
+
+test('Copy commands recovers visibly when clipboard permission is denied', async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: () => Promise.reject(new DOMException('Write permission denied.', 'NotAllowedError')) },
+    });
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Copy commands' }).click();
+  await expect(page.locator('[data-copy-feedback]')).toHaveText('Clipboard access was denied. Select the commands above and copy them manually.');
+  await expect(page.locator('[data-copy-code]')).toBeFocused();
+  expect(await page.locator('[data-copy-code]').evaluate(() => window.getSelection()?.toString())).toContain('cargo install --path .');
+  expect(pageErrors).toEqual([]);
 });
 
 test('required first-screen content fits common desktop viewports', async ({ page }) => {
@@ -658,7 +696,7 @@ test('@claim:api-metadata-blocks-git API metadata reports Git history as missing
   expect(requests.join('\n')).not.toContain('git/objects');
 });
 
-test('@claim:json-summary successful --json output is parseable and contains command paths', async () => {
+test('@claim:json-summary every --json success and error is parseable', async () => {
   const output = await mkdtemp(join(tmpdir(), 'gfed-json-summary-'));
   const { stdout } = await execFile(binary, ['--json', 'drill', '--source', sample, '--target', 'forgejo:9.0', '--output', output], { env: { ...process.env, GFED_PASSPHRASE: 'browser claim passphrase' } });
   const result = JSON.parse(stdout);
@@ -670,6 +708,20 @@ test('@claim:json-summary successful --json output is parseable and contains com
     const failure = error as { code?: number; stdout?: string };
     expect(failure.code).toBe(1);
     expect(JSON.parse(failure.stdout ?? '')).toMatchObject({ ok: false, error: expect.stringContaining('check --source and try again') });
+  }
+  for (const arguments_ of [
+    ['--json', 'drill', '--source', sample],
+    ['--json', 'drill', '--source', sample, '--target'],
+  ]) {
+    try {
+      await execFile(binary, arguments_);
+      throw new Error('invalid command unexpectedly succeeded');
+    } catch (error) {
+      const failure = error as { code?: number; stdout?: string; stderr?: string };
+      expect(failure.code).toBe(2);
+      expect(failure.stderr ?? '').toBe('');
+      expect(JSON.parse(failure.stdout ?? '')).toMatchObject({ ok: false, error: expect.any(String) });
+    }
   }
 });
 

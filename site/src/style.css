@@ -84,6 +84,7 @@ p { max-width: var(--measure); }
 .install { display: grid; grid-template-columns: 150px .7fr 1.1fr; gap: 32px; align-items: start; }
 .code-block { position: relative; padding: 24px; background: var(--ink-900); border-left: 3px solid var(--signal); font: 500 .86rem/1.8 ui-monospace, monospace; }
 .copy-button { position: absolute; right: 8px; top: 8px; border: 0; padding: 0 12px; background: var(--ink-800); color: var(--paper); font: 600 .72rem/1 ui-monospace, monospace; cursor: pointer; }
+.copy-status { min-height: 1.5em; margin: 12px 0 0; padding-right: 112px; color: var(--amber); font: 600 .72rem/1.4 ui-monospace, monospace; }
 .install > .text-link { grid-column: 3; }
 .text-link { font: 700 .85rem/1.4 ui-monospace, monospace; }
 .boundaries { display: grid; grid-template-columns: 150px 1fr .8fr; gap: 32px; }
@@ -155,7 +156,7 @@ p { max-width: var(--measure); }
   .site-header { width: calc(100% - 24px); }.wordmark span:last-child { display: none; } nav { gap: 12px; } nav a { font-size: .7rem; }
   .hero-copy { padding: 64px 20px 48px; } h1 { font-size: 2.75rem; }.hero-action { align-items: flex-start; flex-direction: column; }.hero-art, .hero-art img { min-height: 320px; }
   .ruled, .how, .boundaries, .page-shell { width: calc(100% - 32px); }.ruled, .how, .boundaries { padding: 72px 0; }
-  .preview, .how, .install, .boundaries, .pricing { display: block; }.section-index { margin-bottom: 24px; }.preview .terminal, .install .code-block, .boundary-list, .purchase { margin-top: 36px; }
+  .preview, .how, .install, .boundaries, .pricing { display: block; }.section-index { margin-bottom: 24px; }.preview .terminal, .install .code-block, .boundary-list, .purchase { margin-top: 36px; }.copy-status { padding-right: 0; }
   .license-token-control { grid-template-columns: 1fr; }.cli-command { align-items: flex-start; flex-direction: column; }
   .steps { margin-top: 34px; }.steps li { grid-template-columns: 42px 1fr; }.terminal pre { font-size: .68rem; min-height: 405px; padding: 16px; overflow-x: auto; overflow-wrap: anywhere; white-space: pre-wrap; }
   .site-footer { width: calc(100% - 32px); grid-template-columns: 1fr; gap: 14px; }.site-footer div { flex-wrap: wrap; }

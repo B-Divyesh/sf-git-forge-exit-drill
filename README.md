@@ -52,6 +52,9 @@ The output directory contains:
 - `evidence.gfed`: source evidence protected with AES-256-GCM after Argon2id
   key derivation.
 
+Choose an output directory outside the selected export. The CLI refuses an
+overlapping path so the source stays read-only.
+
 The source directory may contain `manifest.json` with expected repository-item
 counts. The CLI parses five recognized JSON exports: issues, pull requests,
 releases, workflows, and workflow runs. It compares their record counts with

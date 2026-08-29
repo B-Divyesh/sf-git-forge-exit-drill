@@ -12,8 +12,8 @@ marketing word.
 Run `npm run audit:copy` after changing copy. It fails until this audit is
 updated for the exact reviewed sources.
 
-- `site/src/main.ts: 7685c1602ace47b543df4ffce75a7b282fe2eb9640fb48808fe3f718bfe0838d`
-- `README.md: 488baddec4324932df2ce4fffeb376125c34580fec210977f75ae7a918e989ec`
+- `site/src/main.ts: d3fa0f8ce9838c85e54bda3f68373a49fc741d681509509597ef65d9100eb5fc`
+- `README.md: ae2fe773bad0e143b5dccf374c77f63c1ac66411d5a5abd9beeaa922abd389d1`
 
 ## Landing and route strings
 
@@ -23,7 +23,7 @@ updated for the exact reviewed sources.
 | First screen | Git host migration check; Test your GitHub move before cutover; audience sentence; Try it with sample data; action consequence; three facts | pass |
 | Image and sample | descriptive alt; target-map caption; Sample result; Sample drill results; sample explanation; terminal label and all seven transcript lines | pass |
 | How it works | Run one repeatable drill; Inventory the source; Map the target; Plan the restore test; three explanations | pass |
-| Install and limits | Start with the bundled sample; install explanation; copy control; Linux download; Know what the CLI writes; limit list | pass |
+| Install and limits | Start with the bundled sample; install explanation; copy control and clipboard recovery; Linux download; Know what the CLI writes; limit list | pass |
 | Team Pack | Check ten repositories together; price sentence; two scope bullets; checkout label; license form; hidden license handoff; legal links | pass |
 | Demo | demo banner; See a complete exit drill; recording explanation; blocked finding; three restore actions; Run your own drill | pass |
 | Privacy | all five headings, summaries, saved-license control, and contact line | pass |
@@ -49,6 +49,9 @@ updated for the exact reviewed sources.
 | Set the token before running portfolio. | 6 | pass |
 | License copied. Keep it private. | 5 | pass |
 | Setup command copied. Run it in your terminal. | 8 | pass |
+| Clipboard access was denied. Select the commands above and copy them manually. | 11 | pass |
+| Choose an output directory outside the selected export. | 8 | pass |
+| The CLI refuses an overlapping path so the source stays read-only. | 11 | pass |
 | After checkout, copy the shown private license token. | 8 | pass |
 | Set it in the terminal that runs the portfolio command: | 10 | pass |
 | Development and license | requirements; build outputs; MIT notice | pass |

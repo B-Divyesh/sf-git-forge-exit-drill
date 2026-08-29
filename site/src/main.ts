@@ -81,7 +81,7 @@ function home(): string {
     <section class="install ruled" id="install" aria-labelledby="install-title">
       <div class="section-index">Install</div>
       <div><h2 id="install-title" tabindex="-1">Start with the bundled sample</h2><p>Build from source, then run the sample shown on this page.</p></div>
-      <div class="code-block"><code>cargo install --path .<br />git-forge-exit-drill demo</code><button class="copy-button" data-copy="cargo install --path .\ngit-forge-exit-drill demo">Copy commands</button></div>
+      <div class="code-block"><code tabindex="-1" data-copy-code>cargo install --path .<br />git-forge-exit-drill demo</code><button class="copy-button" data-copy="cargo install --path .\ngit-forge-exit-drill demo">Copy commands</button><p class="copy-status" data-copy-feedback role="status" aria-live="polite"></p></div>
       <a class="text-link" href="/downloads/git-forge-exit-drill-linux-x86_64" download>Download Linux x86-64 binary <span aria-hidden="true">↓</span></a>
     </section>
 
@@ -219,9 +219,17 @@ function bindActions(): void {
   });
   document.querySelector<HTMLButtonElement>('[data-copy]')?.addEventListener('click', async (event) => {
     const button = event.currentTarget as HTMLButtonElement;
-    await navigator.clipboard.writeText(button.dataset.copy ?? '');
-    button.textContent = 'Commands copied';
-    announce('Install commands copied');
+    const feedback = document.querySelector<HTMLElement>('[data-copy-feedback]');
+    try {
+      await navigator.clipboard.writeText(button.dataset.copy ?? '');
+      button.textContent = 'Commands copied';
+      if (feedback) feedback.textContent = '';
+      announce('Install commands copied');
+    } catch {
+      selectText(document.querySelector<HTMLElement>('[data-copy-code]'));
+      if (feedback) feedback.textContent = 'Clipboard access was denied. Select the commands above and copy them manually.';
+      announce('Clipboard access was denied. Select the commands above and copy them manually.');
+    }
   });
   document.querySelector<HTMLButtonElement>('[data-show-license-form]')?.addEventListener('click', () => {
     const form = document.querySelector<HTMLFormElement>('.license-form')!;
@@ -353,6 +361,17 @@ async function copyLicenseValue(kind: 'token' | 'command'): Promise<void> {
     input?.select();
     if (feedback) feedback.textContent = 'Select the license token, copy it, then paste it in your terminal.';
   }
+}
+
+function selectText(element: HTMLElement | null): void {
+  if (!element) return;
+  const selection = window.getSelection();
+  if (!selection) return;
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  selection.removeAllRanges();
+  selection.addRange(range);
+  element.focus();
 }
 
 function shellQuote(value: string): string {
