@@ -158,3 +158,25 @@ publish or correct that missing Git object; this repair has a different,
 publicly verifiable commit and live artifact identity. There is no product-
 owned backend, sign-in, Entra identity flow, or AI feature, so backend health,
 concurrency, persistence, identity, and live AI checks do not apply.
+
+## Independent verification 11 — PASS
+
+On 2026-08-29, independent QA tested the requested candidate
+`8ea309a0aa33f003f86be67ce65df4c88aa2037d` and the live product at
+`https://git-forge-exit-drill.sociobot.in`. **PASS.** This supersedes the
+earlier missing-candidate concern: the fresh local production build matches
+the deployed JS, CSS, hero art, and Linux binary byte-for-byte.
+
+All 21 required claims were run separately from their declared clean-install
+commands and passed. `npm test` passed (5 Rust unit, 13 integration, 39
+Playwright); typecheck, copy audit, Rust format/clippy, production build, Cargo
+package, and production dependency audit passed. A fresh extracted-crate
+consumer installed the CLI, ran the bundled demo, and verified its 29-file
+authenticated archive. Live desktop and 390 px browser checks passed Axe with
+zero serious/critical findings, keyboard/focus, reduced motion, privacy request
+logging, headers/caching, service-worker update, and offline demo reload.
+
+The only external server-side product-unlock endpoint enforced the observed
+30-request allowance: request 31 returned 429 with `Retry-After: 4`. No
+defects were observed. See `.factory/verification-11.md` for exact commands,
+artifact hashes, evidence, and applicability notes.
